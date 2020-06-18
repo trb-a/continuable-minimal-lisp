@@ -1,0 +1,88 @@
+<html>
+  <head>
+    <title>Parcel Sandbox</title>
+    <meta charset="UTF-8" />
+    <!-- https://itnext.io/how-to-create-interactive-terminal-like-website-888bb0972288 -->
+    <!-- <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://unpkg.com/jquery.terminal/js/jquery.terminal.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/jquery.terminal/css/jquery.terminal.min.css"
+    />
+  </head>
+
+  <body>
+    <h1>Continuable miniMAL Lisp REPL</h1>
+    <a href="http://kanaka.github.io/miniMAL">miniMAL</a> is a JSON-Formatted
+    Lisp originally developed
+    <a href="https://github.com/kanaka/miniMAL">here</a>. You can find language
+    spec on <a href="http://kanaka.github.io/miniMAL">the site</a>. We
+    implemented miniMAL with suspend/resume support, by Typescript.
+    <div id="term" style="height: 50vh;"></div>
+    <h4>
+      Serialized continuation by
+      <a href="https://github.com/nodeca/js-yaml">js-yaml</a>
+    </h4>
+    <input id="suspend" type="button" value="Suspend" />
+    <input id="resume" type="button" value="Resume with dialog" />
+    <input id="resumeWithNull" type="button" value="Resume with null" />
+    <input id="copy" type="button" value="Copy to clipboard" />
+    <p>
+      <textarea id="textarea" style="width: 100%; height: 15vh;"></textarea>
+    </p>
+    <h4>To try suspend and resume</h4>
+    <pre>
+      1. Type on console:
+        ["def","fib",["fn",["N"],["do",["suspend", null],["if",["=","N",0],1,["if",["=","N",1],1,["+",["fib",["-","N",1]],["fib",["-","N",2]]]]]]]]
+      2. Type on console:
+        ["fib", 4]
+      3. Observe the content of the textarea above. That's the seriazlied continuation with YAML.
+      4. Push "Resume with null".
+      5. Observe the content of the textarea above again. The content must be changed.
+        You can copy all the content, bring it home and come tomorrow.
+      6. Paste the serialized content into the textarea.
+      7. Push "Resume with null" 8 times (without step No.4).
+      8. Finally console shows the result: 5.
+    </pre>
+    <h4>Limitations</h4>
+    <ul>
+      <li>
+        Insufficient TCO (tail call optimization). We are working on it.
+      </li>
+      <li>
+        Only for modern browsers. Only tested on newest Chrome at this moment.
+        Bug reports are welcome, but we never support IE.
+      </li>
+      <li>
+        Can run on browser environment, by not on node.js environment at this
+        moment.
+      </li>
+      <li>
+        We don't have "slurp" "load" function and ARGS symbol. ( They are only
+        for node.js )
+      </li>
+      <li>
+        ["new", ["fn" ...]] doesn't work. Because our function is not wrapped
+        with Javascript function. (Original miniMAL
+        <a
+          href="https://github.com/kanaka/miniMAL/blob/gh-pages/js/tests/stepA_miniMAL.json#L13"
+          >can do</a
+        >
+        this.)
+      </li>
+      <li>
+        Resume doesn't work if the Continuable miniMAL Lisp's major version or
+        minor version changes because continuation reflects the language
+        internal strongly.
+      </li>
+    </ul>
+    <h4>License</h4>
+    <p>
+      Interpreter implementation is licensed under MIT. The modules which web
+      site depends on (jquery, js-yaml, jquery-terminal, etc.) have their own
+      license.
+    </p>
+    <script src="web/index.ts"></script>
+  </body>
+</html>
