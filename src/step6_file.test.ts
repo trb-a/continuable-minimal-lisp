@@ -1,5 +1,5 @@
 // From https://github.com/kanaka/miniMAL, under test directory
-// And converted to jest syntax.
+// Converted to jest syntax.
 
 import Interpreter from "./interpreter";
 
@@ -13,8 +13,6 @@ const interpreter = new Interpreter({
 interpreter.debugMode = DEBUG;
 interpreter.debugMax = DEBUG_MAX;
 
-//; TODO: really a step5 test
-//
 // Testing that [do [do]] not broken by TCO
 test("1", () => {
   expect(interpreter.rep('["do", ["do", 1, 2]]')).toBe("2");

@@ -17,8 +17,8 @@
     <a href="http://kanaka.github.io/miniMAL">miniMAL</a> is a JSON-Formatted
     Lisp originally developed
     <a href="https://github.com/kanaka/miniMAL">here</a>. You can find language
-    spec on <a href="http://kanaka.github.io/miniMAL">the site</a>. We
-    implemented miniMAL with suspend/resume support, by Typescript.
+    spec on <a href="http://kanaka.github.io/miniMAL">the site</a>. Continuable miniMAL Lisp REPL
+    is a implementation of miniMAL with suspend/resume support written in Typescript.
     <div id="term" style="height: 50vh;"></div>
     <h4>
       Serialized continuation by
@@ -45,44 +45,6 @@
       7. Push "Resume with null" 8 times (without step No.4).
       8. Finally console shows the result: 5.
     </pre>
-    <h4>Limitations</h4>
-    <ul>
-      <li>
-        Insufficient TCO (tail call optimization). We are working on it.
-      </li>
-      <li>
-        Only for modern browsers. Only tested on newest Chrome at this moment.
-        Bug reports are welcome, but we never support IE.
-      </li>
-      <li>
-        Can run on browser environment, by not on node.js environment at this
-        moment.
-      </li>
-      <li>
-        We don't have "slurp" "load" function and ARGS symbol. ( They are only
-        for node.js )
-      </li>
-      <li>
-        ["new", ["fn" ...]] doesn't work. Because our function is not wrapped
-        with Javascript function. (Original miniMAL
-        <a
-          href="https://github.com/kanaka/miniMAL/blob/gh-pages/js/tests/stepA_miniMAL.json#L13"
-          >can do</a
-        >
-        this.)
-      </li>
-      <li>
-        Resume doesn't work if the Continuable miniMAL Lisp's major version or
-        minor version changes because continuation reflects the language
-        internal strongly.
-      </li>
-    </ul>
-    <h4>License</h4>
-    <p>
-      Interpreter implementation is licensed under MIT. The modules which web
-      site depends on (jquery, js-yaml, jquery-terminal, etc.) have their own
-      license.
-    </p>
-    <script src="web/index.ts"></script>
+   <script src="web/index.ts"></script>
   </body>
 </html>

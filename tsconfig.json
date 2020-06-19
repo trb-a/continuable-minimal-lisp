@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "target": "es5",
     "strict": true,
     "module": "commonjs",
     "jsx": "preserve",
@@ -10,7 +11,15 @@
       "es6",
       "dom"
     ],
-    "rootDir": "src",
-    "moduleResolution": "node"
+    "rootDir": ".",
+    "moduleResolution": "node",
+    "declaration": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+        "*": [
+            "src/*",
+        ]
+    },
   }
 }

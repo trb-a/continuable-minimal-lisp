@@ -1,24 +1,31 @@
 {
   "name": "continuable-minimal-lisp",
   "version": "0.0.1",
-  "description": "Coninuable miniMAL Lisp is a miniMAL lisp implementation with suspend/resume support.",
-  "main": "dist/index.min.js",
+  "description": "Continuable miniMAL Lisp is a miniMAL lisp implementation with suspend/resume support.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "start": "parcel index.html --open",
-    "build": "parcel build index.min.js",
-    "docs": "parcel build index.html --outdir docs"
+    "build": "yarn module && yarn docs && yarn types",
+    "module": "parcel build src/index.ts",
+    "docs": "yarn rimraf docs && parcel build index.html --out-dir docs",
+    "types": "tsc src/index --declaration --emitDeclarationOnly --outFile dist/index.d.ts",
+    "test": "jest"
   },
-  "dependencies": {
-    "js-yaml": "3.14.0"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "@types/jest": "^26.0.0",
     "@types/jquery": "3.3.38",
     "@types/js-yaml": "3.12.4",
-    "@types/node": "14.0.13",
+    "@types/node": "^14.0.13",
     "buffer": "5.6.0",
+    "jest": "^26.0.1",
     "jquery.terminal": "2.17.2",
-    "typescript": "3.8.3",
-    "parcel-bundler": "^1.6.1"
+    "js-yaml": "3.14.0",
+    "parcel-bundler": "^1.6.1",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^26.1.0",
+    "typescript": "^3.9.5"
   },
   "keywords": [
     "lisp",
@@ -29,5 +36,8 @@
     "interpreter",
     "suspend",
     "resume"
-  ]
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/trb-a/continuable-minimal-lisp",
+  "author": "Toribune Co., Ltd. (http://www.tribune.co.jp)"
 }

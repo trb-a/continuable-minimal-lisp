@@ -1,6 +1,3 @@
-// From https://github.com/kanaka/miniMAL, under test directory
-// And converted to jest syntax.
-
 import Interpreter, { isContinuation } from "./interpreter";
 
 const DEBUG = false;

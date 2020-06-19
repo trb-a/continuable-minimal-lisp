@@ -106,8 +106,7 @@ $<HTMLButtonElement>("#suspend").click(() => {
         t.echo("Serialization failed.");
       }
     } else {
-      console.error(e);
-      t.echo(e); //TODO★エラーとして表示する方法は？
+      t.exception(e, "SUSPEND");
     }
   }
 });
@@ -150,8 +149,7 @@ $<HTMLButtonElement>("#resume, #resumeWithNull").click(e => {
         t.echo("Serialization failed.");
       }
     } else {
-      console.error(e);
-      t.echo(e); //TODO★エラーとして表示する方法は？
+      t.exception(e, "RESUME");
     }
   }
 });

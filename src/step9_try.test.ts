@@ -1,5 +1,5 @@
 // From https://github.com/kanaka/miniMAL, under test directory
-// And converted to jest syntax.
+// Converted to jest syntax.
 
 import Interpreter from "./interpreter";
 
