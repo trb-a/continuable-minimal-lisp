@@ -22,14 +22,14 @@ Features
    - Javascript interoperavility
    - Error handling
    - Dependency free (to use as a library)
-   - and lot more...
+   - and more...
  - Suspend / Resume
    - Suspend wherever you want ( where you call `suspend' function).
    - Resume from the suspended point.
    - Suspended state can be serialized using YAML or other serialization tools.  
      Note: depends on what kind of data you treat in the code and serialization tool you select. 
 
-REPL
+Online REPL Demo
 ==========
 
 You can try [REPL demo](https://trb-a.github.io/continuable-minimal-lisp/).
@@ -37,7 +37,26 @@ You can try [REPL demo](https://trb-a.github.io/continuable-minimal-lisp/).
 How to use
 ==========
 
-TODO: not published to npm yet.
+Install:  
+Note: not published to npm yet.
+```
+yarn add https://github.com/trb-a/continuable-minimal-lisp.git
+```
+or 
+```
+npm install git+https://github.com/trb-a/continuable-minimal-lisp.git
+```
+In your code: 
+```TypeScript
+import { Interpreter } from "continuable-minimal-lisp";
+const interpreter = new Interpreter();
+const value = interpreter.eval(
+  ["do",
+    ["def", "fun", ["fn", ["a", "b"], ["+", "a", "b"]]],
+    ["fun", 1, 2]]
+);
+console.log(value); // or somwhere else.
+```
 
 Limitations
 ==========
