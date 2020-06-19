@@ -108,3 +108,13 @@ test("Suspend near the end", () => {
   }
   expect(result).toBe(5);
 });
+
+test("Check if argument is evaluated before suspend.", () => {
+  try {
+    interpreter.eval(
+      ["suspend", ["+", 1, 2]]
+    );
+  } catch (e) {
+    expect(e["info"]).toBe(3);
+  }
+});

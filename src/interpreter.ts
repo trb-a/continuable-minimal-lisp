@@ -1,9 +1,3 @@
-// IMPROVEME: Async support. It's too much at this moment.
-//   Using async - await changes everything async, that makes everything slow.
-//   Use this way => https://codesandbox.io/s/asyncguanshukaratongqidezhiwofansukorubatukuwoshiebakeneng-mqdff
-// IMPROVEME: With Await support, we can imprement `slurp` as fetch.
-// -----------
-
 /* eslint-disable no-loop-func */
 /* eslint-disable no-throw-literal */
 
@@ -47,8 +41,7 @@ export type Continuation = {
 };
 type Applicable = Lambda | JSFunction | Continuation;
 
-// Evaluation stack. [<parent>, <index>, <env>, <flag>, error-handler]
-// Parent can be AST node or Env.
+// Evaluation stack.
 export type Eval = { parent: Expr[], index: number, env: Env, flag: string | null, handler: Eval | null };
 export type EvalStack = Eval[];
 
@@ -125,15 +118,13 @@ const error = (str: string): never => {
 const assertSymbol: (x: any) => asserts x is string = (x) =>
   (typeof x === "string") || error(`${x} is not a symbol`);
 
-// Asserts x is object. (Not work well)
-// const assertObject: (x: any) => asserts x is Record<string, any> = (x) =>
-//   (typeof x === "object" && x !== null) || error(`${x} is not a object`);
-
+// Asserts x is string or number or symbol.
 const assertPropertyIndex: (x: any) => asserts x is "string" | "number" | "symbol" = (x) => (
   typeof x === "string" || typeof x === "symbol" ||
   typeof x === "number" || error("String(x) is not a property index")
 );
 
+// Asserts x is BOR.
 export const isBOR = (base: Base, x: any): x is BOR =>
   typeof x === "object" && x !== null && typeof x["bor"] === "string" &&
   x["bor"] in base;
@@ -164,15 +155,18 @@ export const isLambda = (x: any): x is Lambda =>
 const isJSFunction = (x: any): x is JSFunction =>
   typeof x === "function";
 
+// Determines if x is a lambda, js function or continuation.
 export const isApplicable = (x: any): x is Applicable =>
   isLambda(x) || isJSFunction(x) || isContinuation(x);
 
+// Asserts if x is a lambda, js function or continuation.
 const assertApplicable: (x: any) => asserts x is Applicable = (x) =>
   isApplicable(x) || error(`${x} is not a applicable`);
 
 // const assertJSFunction: (x: any) => asserts x is JSFunction = (x) =>
 //   typeof x === "function" || error(`${x} is not a JS function`);
 
+// Determines if x is evaluation request.
 const isEval = (x: any): x is Eval =>
   typeof x === "object" && x !== null &&
   x["parent"] instanceof Array &&
@@ -181,6 +175,7 @@ const isEval = (x: any): x is Eval =>
   (x["flag"] === null || typeof x["flag"] === "string") &&
   typeof x["handler"] === "object" // Note: null | object. We don't get in deep.
 
+// Determines if x is continuation (suspended runtime state)
 // Note: Not cheking everything, but just surface.
 // Checks format version at the same time.
 export const isContinuation = (x: any): x is Continuation =>
@@ -190,6 +185,7 @@ export const isContinuation = (x: any): x is Continuation =>
   typeof x["version"] === "string" &&
   x["version"].replace(/\.[^.]+$/, "") === VERSION.replace(/\.[^.]+$/, "");
 
+// Asserts if x is continuation (suspended runtime state)
 const assertContinuation: (x: any) => asserts x is Continuation = (x) =>
   isContinuation(x) || error(`${x} is not a continuation`);;
 
@@ -213,9 +209,12 @@ const assertLet: (x: any) => asserts x is Let = (x) =>
   x instanceof Array && x[0] === "let" &&
   x[1] instanceof Array && x.length >= 3;
 
-// -- handling BOR. --
+// -------------------------------------------------------
+//            Handling BOR
+// -------------------------------------------------------
+
 // create BOR from a string.
-// if the string is not in BaseAAA, exception occurs.
+// if the string is not in Base, exception occurs.
 export const newBOR = (base: Base, prop: string): BOR =>
   (prop in base) ? { bor: prop } : error(`${prop} is not a property of base object`);
 
@@ -451,7 +450,7 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag }) => {
   } else if (flag === "!") {
     const [, ...args] = node;
     const f = derefBOR(base, node[0]);
-    // apply function.
+    // Apply function.
     if (isJSFunction(f)) {
       return { ret: f(...derefBORArray(base, args)) };
     } else if (isLambda(f)) {
@@ -489,7 +488,7 @@ const MacroHandler: FormHandler = ({ node, env, base }) => {
 }
 
 // Continuation form
-const ContinuationFormHandler: FormHandler = ({ node, env, flag, cont }) => {
+const ContinuationFormHandler: FormHandler = ({ node, flag, cont }) => {
   if (!flag) {
     // Evaluate the argument. (In the current environment, Not in the continuation's one)
     const cn = [...node];
@@ -530,7 +529,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
 
   // eval - evaluate argument, and re-eval it.
-  eval: ({ node, env, base, flag }) => {
+  eval: ({ node, flag }) => {
     if (!flag) {
       const cn = [...node];
       return { ret: cn, reevals: [{ flag: "!" }], subevals: [{ parent: cn, index: 1 }] };
@@ -540,7 +539,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
 
   // def - define
-  def: ({ node, env, base, flag }) => {
+  def: ({ node, env, flag }) => {
     if (!flag) {
       const cn = [...node];
       return { ret: cn, reevals: [{ flag: "!" }], subevals: [{ parent: cn, index: 2 }] };
@@ -556,7 +555,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
 
   // ~ - define macro
-  "~": ({ node, env, base, flag }) => {
+  "~": ({ node, flag }) => {
     const cn = [...node];
     if (!flag) {
       return { ret: cn, reevals: [{ flag: "!" }], subevals: [{ parent: cn, index: 1 }] };
@@ -568,7 +567,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
 
   // .- - get or set attribute/property, dereferencing BOR.
-  ".-": ({ node, env, base, flag }) => {
+  ".-": ({ node, base, flag }) => {
     if (!flag) {
       const cn = [...node];
       return {
@@ -588,7 +587,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
 
   // . - call/apply method
-  ".": ({ node, env, base, flag }) => {
+  ".": ({ node, base, flag }) => {
     if (!flag) {
       const cn = [...node];
       return {
@@ -612,9 +611,9 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
     }
   },
 
-  // .- - get attribute/property, not dereferencing argument's BOR.
+  // oget - get attribute/property, not dereferencing argument's BOR.
   // Note: maybe JSLambda can do this.
-  oget: ({ node, env, base, flag }) => {
+  oget: ({ node, base, flag }) => {
     if (!flag) {
       const cn = [...node];
       return {
@@ -633,9 +632,9 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
     }
   },
 
-  // .- - set attribute/property, not dereferencing argument's BOR.
+  // oset - set attribute/property, not dereferencing argument's BOR.
   // Note: maybe JSLambda can do this.
-  oset: ({ node, env, base, flag }) => {
+  oset: ({ node, base, flag }) => {
     if (!flag) {
       const cn = [...node];
       return {
@@ -657,7 +656,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   // try-catch
   // Note: catch clause's car does't have any meaning in minimal.
   // Note: param is only one, not like `fn'.
-  try: ({ node, env, base, flag, cont, handler }) => {
+  try: ({ node, env, flag, cont, handler }) => {
     assertTry(node);
     if (!flag) {
       const newErrorHandler: Eval = {
@@ -693,7 +692,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
 
   // fn - function (define lamda)
-  fn: ({ node, env, base, flag }) => {
+  fn: ({ node, env }) => {
     assertFn(node);
     const [, params, body] = node;
     return { ret: ["=>", params, body, env] };
@@ -701,7 +700,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
 
   // map - apply function/lambda to each items in a list
   // Note: Maybe can be implimented by macro.
-  map: ({ node, env, base, flag }) => {
+  map: ({ node, flag }) => {
     if (!flag) {
       const cn = [...node];
       return {
@@ -721,7 +720,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
 
   // apply - apply function/lambda with arguments.
-  apply: ({ node, env, base, flag }) => {
+  apply: ({ node, flag }) => {
     if (!flag) {
       const cn = [...node];
       return {
@@ -743,7 +742,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
 
   // let - new environment with bindings
   // Translate to `do' form with new environment.
-  let: ({ node, env, base, flag }) => {
+  let: ({ node, env }) => {
     assertLet(node);
     const [, plist, body] = node;
     if (plist.length % 2 === 1) {
@@ -762,7 +761,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   // do - multiple forms (for side-effects)
   // Note: `do' MUST dispose the result of evalation except the last one.
   // Note: last one substitutes the `do' form and re-evaluated not increasing stack.
-  do: ({ node, env, base, flag }) => {
+  do: ({ node }) => {
     const [, ...args] = node;
     const [last = null] = args.slice(-1); // Note: last becomes null if no args.
     const rest = args.slice(0, -1);
@@ -774,7 +773,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
 
   // if - branching conditional
-  if: ({ node, env, base, flag }) => {
+  if: ({ node, flag }) => {
     if (!flag) {
       const cn = [...node];
       return { ret: cn, reevals: [{ flag: "!" }], subevals: [{ parent: cn, index: 1 }] };
@@ -784,15 +783,20 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
 
   // suspend - throws continuation.
-  suspend: ({ node, env, base, flag, cont }) => {
-    const [, ...args] = node;
-    cont.info = args[0] ?? null;
-    throw cont;
+  suspend: ({ node, flag, cont }) => {
+    if (!flag) {
+      const cn = [...node];
+      return { ret: cn, reevals: [{ flag: "!" }], subevals: [{ parent: cn, index: 1 }] };
+    } else {
+      const [, ...args] = node;
+      cont.info = args[0] ?? null;
+      throw cont;
+    }
   },
 
   // resume - resume the continuation.
   // Note: Can be implemented by macro.
-  resume: ({ node, env, base, flag }) => {
+  resume: ({ node, flag }) => {
     const [, cont, ...args] = node;
     assertContinuation(cont);
     return { ret: [cont, ...args], reevals: [{ flag: "!" }] }
@@ -830,7 +834,6 @@ const DEFAULT_BASE: Base = Object.assign(Object.create(TheGlobal), {
   js: eval,
   //"slurp": (...a) => require("fs").readFileSync(a[0],"utf8"),
   //"load":  (...a) => EVAL(JSON.parse(require("fs").readFileSync(a[0],"utf8")),E),
-  load: ["fn", ["a"], ["eval", ["require", "a"]]],
 });
 
 export default Interpreter;
