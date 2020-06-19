@@ -12,7 +12,7 @@
     "build": "yarn module && yarn docs && yarn types",
     "module": "parcel build src/index.ts",
     "docs": "yarn rimraf docs && parcel build index.html --out-dir docs --public-url . && yarn run nodetouch docs/.nojekyll",
-    "types": "tsc --emitDeclarationOnly && copyfiles -f dist/types/src/*.d.ts dist && rimraf dist/types",
+    "types": "tsc --emitDeclarationOnly && copyfiles -u 3 dist/types/src/*.d.ts dist && rimraf dist/types",
     "test": "jest"
   },
   "dependencies": {},

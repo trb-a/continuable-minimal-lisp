@@ -99,11 +99,18 @@ export const cloneAST = (ast: any, map = new Map<any, any>()): Expr => {
   }
 };
 
-// throws string.
+// Throws string.
 // Note: Javascript's stacktrace is meaningless for lisp errors.
 // IMPROVEME: implement lisp stacktrace.
 const error = (str: string): never => {
   throw str;
+}
+
+// Delete all the keys with undefined value in a object.
+const deleteUndefined = (obj: any): void => {
+  if (typeof obj === "object" && obj !== null) {
+    Object.keys(obj).filter(k => obj[k] === undefined).forEach(k => delete obj[k]);
+  }
 }
 
 // const isPromise = <T, S>(obj: PromiseLike<T> | S): obj is PromiseLike<T> =>
@@ -125,9 +132,11 @@ const assertPropertyIndex: (x: any) => asserts x is "string" | "number" | "symbo
 );
 
 // Asserts x is BOR.
+// Strict check so that we don't take user's object as BOR as far as possible.
+// Note: We recommend to use Map instead of object for dictionary, if serializer accept Map.
 export const isBOR = (base: Base, x: any): x is BOR =>
   typeof x === "object" && x !== null && typeof x["bor"] === "string" &&
-  x["bor"] in base;
+  x.constructor === Object && Object.keys(x).length === 1 && x["bor"] in base;
 
 // Determines if x is AST[].
 const isList = (x: any): x is Expr[] => (x instanceof Array);
@@ -282,7 +291,10 @@ export class Interpreter {
   public debugMax: number = Infinity; // Throws error if debugCount exceeds this.
   public debugFilter: (message: string) => boolean = () => true;
 
+  // Constructor can take options.
+  // Load core.json to the Base object unless disabled.
   constructor(options?: Options) {
+    deleteUndefined(options); // Don't give any undefined value to the options.
     Object.assign(this, options);
     if (this.loadCore) {
       this.evalInBase(require("./core.json"));
@@ -321,11 +333,11 @@ export class Interpreter {
 
     // Continue evaluation until the stack becomes empty.
     while (stack.length) {
-      this.debug("Current eval-stack length, eval-stack", stack.length, stack);
+      this.debug("Current eval-stack length, eval-stack: ", stack.length, stack);
       const current = stack.pop()!;
       const { parent, index, env, flag, handler } = current;
       const node: Expr = parent[index];
-      this.debug("Next evaluating AST node, environment, flag", node, env, flag);
+      this.debug("Next evaluating AST node, environment, flag: ", node, env, flag);
 
       try {
         if (typeof node === "string") {
@@ -378,11 +390,11 @@ export class Interpreter {
       } catch (e) {
         if (isContinuation(e)) {
           // Thrown continuation does not be caught by try-catch.
-          this.debug("Suspend", e);
+          this.debug("Suspend. Continuation: ", e);
           throw e;
         } else {
           // Exception.
-          this.debug("Exception", e);
+          this.debug("Caught an exception. Exception: ", e);
           if (handler) {
             // Set the exception to the catch clause's environment.
             const tryNode = handler.parent[handler.index];
@@ -399,12 +411,12 @@ export class Interpreter {
           }
         }
       } finally {
-        this.debug("Evaluation Done. AST, environment", parent[index], env);
+        this.debug("Evaluation Done. Node, environment: ", parent[index], env);
       }
     }
 
     // return the evaluated value in the container at last.
-    this.debug("Result", root[0]);
+    this.debug("Evaluatin finished. Result: ", root[0]);
     return root[0];
   }
 
