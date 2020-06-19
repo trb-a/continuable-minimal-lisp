@@ -16,7 +16,7 @@ It has powerful interoperavility with Javascript.
 REPL
 -----
 
-You can try [here](https://github.com/trb-a/continuable-minimal-lisp/docs/index.html)
+You can try [REPL demo](https://trb-a.github.io/continuable-minimal-lisp/).
 
 How to use
 ==========
