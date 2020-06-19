@@ -8,7 +8,7 @@
     "start": "parcel index.html --open",
     "build": "yarn module && yarn docs && yarn types",
     "module": "parcel build src/index.ts",
-    "docs": "yarn rimraf docs && parcel build index.html --out-dir docs && yarn run nodetouch docs/.nojekyll",
+    "docs": "yarn rimraf docs && parcel build index.html --out-dir docs --public-url . && yarn run nodetouch docs/.nojekyll",
     "types": "tsc src/index --declaration --emitDeclarationOnly --outFile dist/index.d.ts",
     "test": "jest"
   },
