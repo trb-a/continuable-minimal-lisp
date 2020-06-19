@@ -4,12 +4,15 @@
   "description": "Continuable miniMAL Lisp is a miniMAL lisp implementation with suspend/resume support.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "start": "parcel index.html --open",
     "build": "yarn module && yarn docs && yarn types",
     "module": "parcel build src/index.ts",
     "docs": "yarn rimraf docs && parcel build index.html --out-dir docs --public-url . && yarn run nodetouch docs/.nojekyll",
-    "types": "tsc src/index --declaration --emitDeclarationOnly --outFile dist/index.d.ts",
+    "types": "tsc --emitDeclarationOnly && copyfiles -f dist/types/src/*.d.ts dist && rimraf dist/types",
     "test": "jest"
   },
   "dependencies": {},
@@ -19,9 +22,11 @@
     "@types/js-yaml": "3.12.4",
     "@types/node": "^14.0.13",
     "buffer": "5.6.0",
+    "copyfiles": "^2.3.0",
     "jest": "^26.0.1",
     "jquery.terminal": "2.17.2",
     "js-yaml": "3.14.0",
+    "parcel": "^1.12.4",
     "parcel-bundler": "^1.6.1",
     "rimraf": "^3.0.2",
     "touch": "^3.1.0",
