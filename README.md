@@ -24,10 +24,17 @@ Features
    - Dependency free (to use as a library)
    - and more...
  - Suspend / Resume
-   - Suspend wherever you want ( where you call `suspend' function).
+   - Suspend wherever you want in Lisp.  
+     When `suspend' function is evaluated, it throws a `Continuation' object.   
+     Note: Javascript functions / methods can't throw any Continuation object.
    - Resume from the suspended point.
+     Giving a `Continuation' object to Interpreter's resume method, it resumes
+     evaluation from the point where `suspend' have been evaluated. Even you can
+     call `resume' in your Lisp code if you like.
    - Suspended state can be serialized using YAML or other serialization tools.  
-     Note: depends on what kind of data you treat in the code and serialization tool you select. 
+     Note: whether it can serialized or not depends on what kind of data you treat 
+     in the code and serialization tool you select. For example, if you keep some
+     Javascript function in the environment, serialization will be very difficult.
 
 Online REPL Demo
 ==========
@@ -66,15 +73,15 @@ Limitations
  - It's still miniMAL, but not minimal anymore as of file size.  
    (Minified library size is about 17k including core.json. Original file size is less than 1k without core.json)
  - We don't have "slurp" "load" function and ARGS symbol. ( They are only for node.js )
- - ["new", ["fn" ...]] doesn't work. Because our lisp function is not wrapped with Javascript function.   
-   (Original miniMAL [can do this](https://github.com/kanaka/miniMAL/blob/gh-pages/js/tests/stepA_miniMAL.json#L13"))
  - Resume doesn't work if the major version or minor version changes from the suspended versions.  
    Because continuation reflects the language internal strongly.
 
 TODO
 =======
  - JS async function support. When calling JS async function await until resolved and resume automatically.  
-   This enables network request (like fetch()) in a lisp function.
+   This enables network request (like fetch()) in a lisp function. (if requested or as necessary)
+ - Explanation about BOR, Calling JS function, difference between between Lisp function Lisp labmda,  
+   Lisp macro, JS (labmda) macro, special forms. (if requested)
 
 License
 =======

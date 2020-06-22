@@ -26,8 +26,7 @@ test("3", () => {
   expect(interpreter.eval(["def", "o", ["new", "Object"]])).toEqual({});
 });
 
-// We can't do his.
-test.skip("4", () => {
+test("4", () => {
   expect(interpreter.eval(["def", "f", ["new", ["fn", [], null]]])).toEqual({});
 });
 

@@ -118,3 +118,30 @@ test("Check if argument is evaluated before suspend.", () => {
     expect(e["info"]).toBe(3);
   }
 });
+
+test("Check if JS function can not raise any continuation.", () => {
+  expect(() =>
+    interpreter.eval([
+      () => interpreter.eval(["suspend", ["+", 1, 2]])
+    ])
+  ).toThrow(/Javascript function can not throw any continuation/);
+});
+
+test("Check if JS Lambda can not raise any continuation.", () => {
+  expect(() =>
+    interpreter.eval([
+      ["fn", () => interpreter.eval(["suspend", ["+", 1, 2]])]
+    ])
+  ).toThrow(/Javascript function can not throw any continuation/);
+});
+
+test("Check if JS method can not raise any continuation.", () => {
+  interpreter.eval(["def", "obj", {
+    "method": () => interpreter.eval(["suspend", ["+", 1, 2]]),
+  }]);
+  expect(() =>
+    interpreter.eval([
+      [".", "obj", ["`", "method"]]
+    ])
+  ).toThrow(/Javascript methods can not throw any continuation/);
+});

@@ -5,7 +5,7 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.0.1";
+export const VERSION = "0.1.1";
 
 // -------------------------------------------------------
 //                   Type definitions
@@ -30,7 +30,7 @@ type Base = { [x: string]: any };
 export type BOR = { bor: string };
 
 // Applicables.
-export type Lambda = ["=>", string[], Expr, Env] | ["=>", JSFunction];
+export type Lambda = ["=>", string[], Expr, Env] | ["=>", null, JSFunction, Env];
 type JSFunction = (...args: any[]) => any;
 export type Continuation = {
   current: Eval,
@@ -64,7 +64,7 @@ type FormHandler = (args: {
   flag: string | null,
   handler: Eval | null,
   cont: Continuation,
-  debug: (message: string, ...args: any[]) => void, // Useful for debugging
+  interpreter: Interpreter,
 }) => {
   ret: Expr,
   subevals?: (Partial<Eval> | null | undefined | false)[], // falsy values will be eliminaed.
@@ -154,13 +154,12 @@ export const isEnv = (x: any): x is Env =>
 
 // Determines if x is a lambda
 export const isLambda = (x: any): x is Lambda =>
-  x instanceof Array && (
-    (x.length === 4 && x[0] === "=>" && (isEnv(x[3])) &&
-      (x[1] instanceof Array && x[1].every(a => typeof a === "string"))) ||
-    (x.length === 2 && x[0] === "=>" && isJSFunction(x[1]))
+  x instanceof Array && x[0] === "=>" && x.length === 4 && isEnv(x[3]) && (
+    (x[1] instanceof Array && x[1].every(a => typeof a === "string")) || // Lisp lambda
+    (x[1] === null && typeof x[2] === "function") // JS Labmda
   );
 
-// Determines if x is a JSLambda
+// Determines if x is a JSFunction
 const isJSFunction = (x: any): x is JSFunction =>
   typeof x === "function";
 
@@ -198,40 +197,25 @@ export const isContinuation = (x: any): x is Continuation =>
 const assertContinuation: (x: any) => asserts x is Continuation = (x) =>
   isContinuation(x) || error(`${x} is not a continuation`);;
 
-// Determine if x is a function
-const isFn = (x: any): x is Fn =>
-  x instanceof Array && x.length === 3 &&
-  x[0] === "fn" &&
-  (x[1] instanceof Array && x[1].every(a => typeof a === "string"));
-
 // Assert x is "fn" form
-const assertFn: (x: any) => asserts x is Fn = (x) =>
-  isFn(x) || error(`${x} is not a function or malformed`);
+const assertFn: (x: any) => asserts x is Fn = (x) => (
+  x instanceof Array && x[0] === "fn" && (
+    (x.length === 3 && (x[1] instanceof Array && x[1].every(a => typeof a === "string"))) ||
+    (x.length === 2 && typeof x[1] === "function") // case of creating JSLambda
+  )
+) || error(`${x} is not a function form or malformed`);
 
 // Assert x is "try" form
-const assertTry: (x: any) => asserts x is Try = (x) =>
+const assertTry: (x: any) => asserts x is Try = (x) => (
   x instanceof Array && x[0] === "try" &&
-  x[2] instanceof Array && typeof x[2][1] === "string" && x[2].length >= 3;
+  x[2] instanceof Array && typeof x[2][1] === "string" && x[2].length >= 3
+) || error(`${x} is not a try form or malformed`);
 
 // Assert x is "let" form
-const assertLet: (x: any) => asserts x is Let = (x) =>
+const assertLet: (x: any) => asserts x is Let = (x) => (
   x instanceof Array && x[0] === "let" &&
-  x[1] instanceof Array && x.length >= 3;
-
-// -------------------------------------------------------
-//            Handling BOR
-// -------------------------------------------------------
-
-// create BOR from a string.
-// if the string is not in Base, exception occurs.
-export const newBOR = (base: Base, prop: string): BOR =>
-  (prop in base) ? { bor: prop } : error(`${prop} is not a property of base object`);
-
-// Dereference if the given argument is a BOR.
-export const derefBOR = (base: Base, ast: Expr) => isBOR(base, ast) ? base[ast.bor] : ast;
-
-// Dereference BOR if the given array has BOR.
-const derefBORArray = (base: Base, ast: readonly Expr[]) => ast.map(a => derefBOR(base, a));
+  x[1] instanceof Array && x.length >= 3
+) || error(`${x} is not a let form or malformed`);
 
 // -------------------------------------------------------
 //  Create, set data to, and get data from the environment.
@@ -268,7 +252,8 @@ export const findEnv = (env: Env, base: Base, symbol: string): [Expr, boolean, b
       !e[1] && symbol in base && base[symbol] !== null &&
       (typeof base[symbol] === "object" || typeof base[symbol] === "function")
     ) {
-      return [newBOR(base, symbol), true, true];
+      const bor: BOR = { bor: symbol }; // Create BOR here.
+      return [bor, true, true];
     }
   }
   return [null, false, false];
@@ -351,7 +336,7 @@ export class Interpreter {
           // Select form handler.
           // If the car is symbol, get the value from the environment
           // to determine if this is a macro form or coninuation form.
-          const envv = (typeof node[0] === "string") ? derefBOR(this.base, findEnv(env, this.base, node[0])[0]) : null;
+          const envv = (typeof node[0] === "string") ? this.derefBOR(findEnv(env, this.base, node[0])[0]) : null;
           const formHandler = (envv instanceof Array && envv[0] === "~") ? (
             MacroHandler
           ) : (typeof node[0] === "string" && SpecialFormHandlers.hasOwnProperty(node[0])) ? (
@@ -364,7 +349,7 @@ export class Interpreter {
           const { ret, subevals, reevals } = formHandler({
             node, env, base: this.base, flag, handler,
             cont: { current, stack, lang: LANGUAGE, version: VERSION },
-            debug: this.debug
+            interpreter: this,
           });
 
           // Push on evaluattion stack and substitute the AST according to the return values.
@@ -420,7 +405,7 @@ export class Interpreter {
     return root[0];
   }
 
-  // They are for external use.
+  // Evaluate AST ( as public method )
   public eval = (ast: Expr) => {
     return this.evalAST(ast);
   }
@@ -440,10 +425,27 @@ export class Interpreter {
     }
   }
 
+  // Resume with a continuation and parameter.
+  // Note: parameter can be null.
+  public resume = (cont: Continuation, value: Expr) => {
+    return this.evalAST(["resume", cont, value]);
+  }
+
+  // Evaluate AST with Base environment.
+  // Base environment will not be included in continuation data.
   // Used for loading core.json.
   public evalInBase = (ast: Expr) => {
     this.evalAST(ast, [this.base, null]);
   }
+
+  // Dereference if the given argument is a BOR.
+  public derefBOR = (ast: Expr) => isBOR(this.base, ast) ? this.base[ast.bor] : ast;
+
+  // Wrap given lambda with JS function.
+  // Internally used when calling JS function.
+  public wrapLambda = (ast: readonly Expr[]) => isLambda(ast)
+    ? (...a: Expr[]) => this.evalAST([["`", ast], ...a])
+    : ast;
 }
 
 // -------------------------------------------------------
@@ -451,7 +453,7 @@ export class Interpreter {
 // -------------------------------------------------------
 
 // Standard form
-const StandardFormHandler: FormHandler = ({ node, env, base, flag }) => {
+const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }) => {
   if (!flag) {
     const cn = [...node];
     return {
@@ -461,20 +463,34 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag }) => {
     };
   } else if (flag === "!") {
     const [, ...args] = node;
-    const f = derefBOR(base, node[0]);
+    const f = interpreter.derefBOR(node[0]);
     // Apply function.
     if (isJSFunction(f)) {
-      return { ret: f(...derefBORArray(base, args)) };
+      try {
+        return { ret: f(...args.map(a => interpreter.wrapLambda(interpreter.derefBOR(a)))) };
+      } catch (e) {
+        if (isContinuation(e)) {
+          throw "Javascript function can not throw any continuation."
+        }
+        throw e;
+      }
     } else if (isLambda(f)) {
-      if (typeof f[1] === "function") {
-        // JS lamdda. Difference between JS function and JS lambda is whether deref BOR
-        // or not.
-        return { ret: f[1](args) };
+      const [, params, body, e] = f;
+      if (typeof body === "function") {
+        // JS lambda.
+        // Note: Difference between JS function and JS lambda is whether deref BOR or not.
+        try {
+          return { ret: body(...args) };
+        } catch (e) {
+          if (isContinuation(e)) {
+            throw "Javascript function can not throw any continuation."
+          }
+          throw e;
+        }
       } else {
         // Lisp lambda. create a new environment with arguments mapped to parameters
         // then evaluate the body.
-        const [, params, body, e] = f;
-        return { ret: body, reevals: [{ env: newEnv(e!, params, args) }] };
+        return { ret: body, reevals: [{ env: newEnv(e!, params!, args) }] };
       }
     } else {
       throw `${String(f)} is not applicable`;
@@ -490,9 +506,9 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag }) => {
 //   2. Macros request re-evaluation of the results.
 //   3. Macros can be applied by symbols.
 //   4. (Undocumented feature): can wrap special functions like fn/def/etc
-const MacroHandler: FormHandler = ({ node, env, base }) => {
+const MacroHandler: FormHandler = ({ node, env, base, interpreter }) => {
   assertSymbol(node[0]);
-  const v = derefBOR(base, findEnv(env, base, node[0])[0]);
+  const v = interpreter.derefBOR(findEnv(env, base, node[0])[0]);
   assertList(v); // We can almost beleave this is OK. Check was done when defined.
   assertApplicable(v[1]);
   // Apply the applicable and re-evaluate after that ( = 2 reevals )
@@ -579,7 +595,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
 
   // .- - get or set attribute/property, dereferencing BOR.
-  ".-": ({ node, base, flag }) => {
+  ".-": ({ node, base, flag, interpreter }) => {
     if (!flag) {
       const cn = [...node];
       return {
@@ -588,18 +604,18 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
         subevals: cn.map((v, index) => index >= 1 && { parent: cn, index }),
       };
     } else {
-      const o = derefBOR(base, node[1]) as any;
+      const o = interpreter.derefBOR(node[1]) as any;
       if (o === null || o === undefined) {
         throw "Can't read/set property of null or undefined.";
       }
-      const [, , prop, v] = derefBORArray(base, node);
+      const [, , prop, v] = node.map(a => interpreter.derefBOR(a));
       assertPropertyIndex(prop);
       return { ret: node.length === 3 ? o[prop] : o[prop] = v };
     }
   },
 
   // . - call/apply method
-  ".": ({ node, base, flag }) => {
+  ".": ({ node, base, flag, interpreter }) => {
     if (!flag) {
       const cn = [...node];
       return {
@@ -608,14 +624,21 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
         subevals: cn.map((v, index) => index >= 1 && { parent: cn, index }),
       };
     } else {
-      const o = derefBOR(base, node[1]) as any;
+      const o = interpreter.derefBOR(node[1]) as any;
       if (o === null || o === undefined) {
         throw "Can't call method of null or undefined.";
       }
       const [, , prop, ...args] = node;
       assertPropertyIndex(prop);
       if (typeof o[prop] === "function") {
-        return { ret: o[prop].apply(o, derefBORArray(base, args)) };
+        try {
+          return { ret: o[prop].apply(o, args.map(a => interpreter.wrapLambda(interpreter.derefBOR(a)))) };
+        } catch (e) {
+          if (isContinuation(e)) {
+            throw "Javascript methods can not throw any continuation."
+          }
+          throw e;
+        }
       } else {
         assertApplicable(o[prop]);
         return { ret: [o[prop], ...args], reevals: [{ flag: "!" }] };
@@ -625,7 +648,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
 
   // oget - get attribute/property, not dereferencing argument's BOR.
   // Note: maybe JSLambda can do this.
-  oget: ({ node, base, flag }) => {
+  oget: ({ node, base, flag, interpreter }) => {
     if (!flag) {
       const cn = [...node];
       return {
@@ -634,7 +657,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
         subevals: cn.map((v, index) => index >= 1 && { parent: cn, index }),
       };
     } else {
-      const o = derefBOR(base, node[1]) as any;
+      const o = interpreter.derefBOR(node[1]) as any;
       if (o === null || o === undefined) {
         throw "Can't read property of null or undefined.";
       }
@@ -646,7 +669,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
 
   // oset - set attribute/property, not dereferencing argument's BOR.
   // Note: maybe JSLambda can do this.
-  oset: ({ node, base, flag }) => {
+  oset: ({ node, base, flag, interpreter }) => {
     if (!flag) {
       const cn = [...node];
       return {
@@ -655,7 +678,7 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
         subevals: cn.map((v, index) => index >= 1 && { parent: cn, index }),
       };
     } else {
-      const o = derefBOR(base, node[1]) as any;
+      const o = interpreter.derefBOR(node[1]) as any;
       if (o === null || o === undefined) {
         throw "Can't set property of null or undefined.";
       }
@@ -706,8 +729,15 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   // fn - function (define lamda)
   fn: ({ node, env }) => {
     assertFn(node);
-    const [, params, body] = node;
-    return { ret: ["=>", params, body, env] };
+    if (typeof node[1] === "function") {
+      // defining JS lambda
+      const [, f] = node;
+      return { ret: ["=>", null, f, env] };
+    } else {
+      // defining Lisp lambda
+      const [, params, body] = node;
+      return { ret: ["=>", params, body, env] };
+    }
   },
 
   // map - apply function/lambda to each items in a list
