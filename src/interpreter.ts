@@ -30,7 +30,7 @@ type Base = { [x: string]: any };
 export type BOR = { bor: string };
 
 // Applicables.
-export type Lambda = ["=>", string[], Expr, Env] | ["=>", null, JSFunction, Env];
+export type Lambda = ["=>", string[], Expr, Env]; // JS Labmda or Lisp labmda
 type JSFunction = (...args: any[]) => any;
 export type Continuation = {
   current: Eval,
@@ -152,11 +152,10 @@ export const isEnv = (x: any): x is Env =>
   typeof x[0] === "object" && x[0] !== null &&
   (x[1] instanceof Array || x[1] === null); // can be !x[1] || isEnv(x[1])
 
-// Determines if x is a lambda
+// Determines if x is a lambda ( Lisp labmda or JS lambda)
 export const isLambda = (x: any): x is Lambda =>
   x instanceof Array && x[0] === "=>" && x.length === 4 && isEnv(x[3]) && (
-    (x[1] instanceof Array && x[1].every(a => typeof a === "string")) || // Lisp lambda
-    (x[1] === null && typeof x[2] === "function") // JS Labmda
+    (x[1] instanceof Array && x[1].every(a => typeof a === "string"))
   );
 
 // Determines if x is a JSFunction
@@ -199,11 +198,9 @@ const assertContinuation: (x: any) => asserts x is Continuation = (x) =>
 
 // Assert x is "fn" form
 const assertFn: (x: any) => asserts x is Fn = (x) => (
-  x instanceof Array && x[0] === "fn" && (
-    (x.length === 3 && (x[1] instanceof Array && x[1].every(a => typeof a === "string"))) ||
-    (x.length === 2 && typeof x[1] === "function") // case of creating JSLambda
-  )
-) || error(`${x} is not a function form or malformed`);
+  x instanceof Array && x[0] === "fn" && x.length === 3 &&
+  x[1] instanceof Array && x[1].every(a => typeof a === "string")
+) || error(`${x} is not a fn form or malformed`);
 
 // Assert x is "try" form
 const assertTry: (x: any) => asserts x is Try = (x) => (
@@ -454,16 +451,16 @@ export class Interpreter {
 
 // Standard form
 const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }) => {
-  if (!flag) {
+  const f = interpreter.derefBOR(node[0]);
+  if (!flag && !isApplicable(f)) {
     const cn = [...node];
     return {
       ret: cn,
       reevals: [{ flag: "!" }],
       subevals: cn.map((v, index) => ({ parent: cn, index, env })),
     };
-  } else if (flag === "!") {
+  } else {
     const [, ...args] = node;
-    const f = interpreter.derefBOR(node[0]);
     // Apply function.
     if (isJSFunction(f)) {
       try {
@@ -479,6 +476,7 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }
       if (typeof body === "function") {
         // JS lambda.
         // Note: Difference between JS function and JS lambda is whether deref BOR or not.
+        // Note: JS labmda doesn't have anything to do with params because we doen't pass env at now
         try {
           return { ret: body(...args) };
         } catch (e) {
@@ -495,8 +493,6 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }
     } else {
       throw `${String(f)} is not applicable`;
     }
-  } else {
-    throw `Unexpedted flag ${flag}`;
   }
 }
 
@@ -517,7 +513,8 @@ const MacroHandler: FormHandler = ({ node, env, base, interpreter }) => {
 
 // Continuation form
 const ContinuationFormHandler: FormHandler = ({ node, flag, cont }) => {
-  if (!flag) {
+  const [f] = node;
+  if (!flag && !isApplicable(f)) {
     // Evaluate the argument. (In the current environment, Not in the continuation's one)
     const cn = [...node];
     return {
@@ -527,7 +524,7 @@ const ContinuationFormHandler: FormHandler = ({ node, flag, cont }) => {
     };
   } else {
     // Mount the continuation on the current AST, stack, and handlers.
-    const [f, ...args] = node;
+    const [, ...args] = node;
     assertContinuation(f);
     // Pass the given argument to the suspender.
     const { parent: cparent, index: cindex } = f.current;
@@ -729,15 +726,9 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   // fn - function (define lamda)
   fn: ({ node, env }) => {
     assertFn(node);
-    if (typeof node[1] === "function") {
-      // defining JS lambda
-      const [, f] = node;
-      return { ret: ["=>", null, f, env] };
-    } else {
-      // defining Lisp lambda
-      const [, params, body] = node;
-      return { ret: ["=>", params, body, env] };
-    }
+    // defining lambda ( List lambda or JS lambda)
+    const [, params, body] = node;
+    return { ret: ["=>", params, body, env] };
   },
 
   // map - apply function/lambda to each items in a list

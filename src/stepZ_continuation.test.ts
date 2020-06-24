@@ -130,7 +130,7 @@ test("Check if JS function can not raise any continuation.", () => {
 test("Check if JS Lambda can not raise any continuation.", () => {
   expect(() =>
     interpreter.eval([
-      ["fn", () => interpreter.eval(["suspend", ["+", 1, 2]])]
+      ["fn", [], () => interpreter.eval(["suspend", ["+", 1, 2]])]
     ])
   ).toThrow(/Javascript function can not throw any continuation/);
 });
