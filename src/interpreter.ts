@@ -5,7 +5,7 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.1.1";
+export const VERSION = "0.2.1";
 
 // -------------------------------------------------------
 //                   Type definitions
