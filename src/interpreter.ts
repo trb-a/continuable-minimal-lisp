@@ -5,17 +5,17 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.2.1";
+export const VERSION = "0.2.2";
 
 // -------------------------------------------------------
 //                   Type definitions
 // -------------------------------------------------------
 
 // Expr accepts almost evrything. Defined just to avoid using `any'.
-type Expr = Expr[] | bigint | boolean | ((...args: any[]) => any) | number
+export type Expr = Expr[] | bigint | boolean | ((...args: any[]) => any) | number
   | object | string | symbol | undefined | null;
 
-type Env = [Record<string, Expr>, Env | null]; // [bound symbols, upper env]
+export type Env = [Record<string, Expr>, Env | null]; // [bound symbols, upper env]
 
 // Base object acts like parent of root environment, but not referenced by
 // Env object.
@@ -72,7 +72,7 @@ type FormHandler = (args: {
 };
 
 // Others.
-type Fn = ["fn", string[], Expr];
+export type Fn = ["fn", string[], Expr];
 type Try = ["try", Expr, [any, "string", Expr]];
 type Let = ["let", Expr[], Expr];
 

@@ -1,7 +1,7 @@
 export declare const LANGUAGE = "Continuable-miniMAL-Lisp";
 export declare const VERSION = "0.2.1";
-declare type Expr = Expr[] | bigint | boolean | ((...args: any[]) => any) | number | object | string | symbol | undefined | null;
-declare type Env = [Record<string, Expr>, Env | null];
+export declare type Expr = Expr[] | bigint | boolean | ((...args: any[]) => any) | number | object | string | symbol | undefined | null;
+export declare type Env = [Record<string, Expr>, Env | null];
 declare type Base = {
     [x: string]: any;
 };
@@ -35,6 +35,7 @@ export declare type Options = {
     debugMax?: number;
     debugFilter?: (message: string) => boolean;
 };
+export declare type Fn = ["fn", string[], Expr];
 export declare const cloneAST: (ast: any, map?: Map<any, any>) => Expr;
 export declare const isBOR: (base: Base, x: any) => x is BOR;
 export declare const isEnv: (x: any) => x is Env;
