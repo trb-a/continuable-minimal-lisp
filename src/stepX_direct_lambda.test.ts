@@ -28,7 +28,7 @@ test("Direct lambda form (Lisp lambda)", () => {
 });
 
 test("Direct lambda form (JS lambda)", () => {
-  const lambda = interpreter.eval(["fn", ["a"], (a) => a + 1]);
+  const lambda = interpreter.eval(["fn", ["a"], (env) => env.get("a") + 1]);
   expect(interpreter.eval([lambda, 2])).toBe(3);
 });
 

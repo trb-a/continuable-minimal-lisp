@@ -5,14 +5,14 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.2.2";
+export const VERSION = "0.3.0";
 
 // -------------------------------------------------------
 //                   Type definitions
 // -------------------------------------------------------
 
 // Expr accepts almost evrything. Defined just to avoid using `any'.
-export type Expr = Expr[] | bigint | boolean | ((...args: any[]) => any) | number
+export type Expr = Expr[] | bigint | boolean | JSFunction | number
   | object | string | symbol | undefined | null;
 
 export type Env = [Record<string, Expr>, Env | null]; // [bound symbols, upper env]
@@ -30,8 +30,10 @@ type Base = { [x: string]: any };
 export type BOR = { bor: string };
 
 // Applicables.
-export type Lambda = ["=>", string[], Expr, Env]; // JS Labmda or Lisp labmda
+export type Lambda = ["=>", string[], Exclude<Expr, JSFunction> | JSLambdaFunction, Env]; // JS Labmda or Lisp labmda
+
 type JSFunction = (...args: any[]) => any;
+
 export type Continuation = {
   current: Eval,
   stack: EvalStack,
@@ -71,8 +73,11 @@ type FormHandler = (args: {
   reevals?: Partial<Eval>[],
 };
 
+// Fn form. Export this because they might define functions out of interpreter.
+export type JSLambdaFunction = (env: EnvWrapper, itrp: Interpreter) => Expr;
+export type Fn = ["fn", string[], Exclude<Expr, JSFunction> | JSLambdaFunction];
+
 // Others.
-export type Fn = ["fn", string[], Expr];
 type Try = ["try", Expr, [any, "string", Expr]];
 type Let = ["let", Expr[], Expr];
 
@@ -475,10 +480,10 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }
       const [, params, body, e] = f;
       if (typeof body === "function") {
         // JS lambda.
-        // Note: Difference between JS function and JS lambda is whether deref BOR or not.
-        // Note: JS labmda doesn't have anything to do with params because we doen't pass env at now
+        // Note: Unlike JS functions, JS lambda receive arguments via environemnt. 
         try {
-          return { ret: body(...args) };
+          const jsLambdaFunc = body as JSLambdaFunction;
+          return { ret: jsLambdaFunc(new EnvWrapper(newEnv(e!, params, args), base), interpreter) };
         } catch (e) {
           if (isContinuation(e)) {
             throw "Javascript function can not throw any continuation."
@@ -836,6 +841,24 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   },
   // Note: maybe we can implement a call/cc here.
 };
+
+// -------------------------------------------------------
+//                Environment wrapper
+// -------------------------------------------------------
+
+// This class wraps environment (with base object) and provides get/has/set method.
+// Used for passing environment information to JS lambdas.
+export class EnvWrapper {
+  private env: Env;
+  private base: Base;
+  constructor(env: Env, base: Base) {
+    this.env = env;
+    this.base = base;
+  }
+  get = (name: string) => findEnv(this.env, this.base, name)[0];
+  has = (name: string) => findEnv(this.env, this.base, name)[1];
+  set = (name: string, value: Expr) => setEnv(this.env, name, value);
+}
 
 // -------------------------------------------------------
 //                    Default base

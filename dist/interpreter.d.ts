@@ -1,6 +1,6 @@
 export declare const LANGUAGE = "Continuable-miniMAL-Lisp";
-export declare const VERSION = "0.2.1";
-export declare type Expr = Expr[] | bigint | boolean | ((...args: any[]) => any) | number | object | string | symbol | undefined | null;
+export declare const VERSION = "0.3.0";
+export declare type Expr = Expr[] | bigint | boolean | JSFunction | number | object | string | symbol | undefined | null;
 export declare type Env = [Record<string, Expr>, Env | null];
 declare type Base = {
     [x: string]: any;
@@ -8,7 +8,7 @@ declare type Base = {
 export declare type BOR = {
     bor: string;
 };
-export declare type Lambda = ["=>", string[], Expr, Env];
+export declare type Lambda = ["=>", string[], Exclude<Expr, JSFunction> | JSLambdaFunction, Env];
 declare type JSFunction = (...args: any[]) => any;
 export declare type Continuation = {
     current: Eval;
@@ -35,7 +35,8 @@ export declare type Options = {
     debugMax?: number;
     debugFilter?: (message: string) => boolean;
 };
-export declare type Fn = ["fn", string[], Expr];
+export declare type JSLambdaFunction = (env: EnvWrapper, itrp: Interpreter) => Expr;
+export declare type Fn = ["fn", string[], Exclude<Expr, JSFunction> | JSLambdaFunction];
 export declare const cloneAST: (ast: any, map?: Map<any, any>) => Expr;
 export declare const isBOR: (base: Base, x: any) => x is BOR;
 export declare const isEnv: (x: any) => x is Env;
@@ -57,12 +58,20 @@ export declare class Interpreter {
     constructor(options?: Options);
     private debug;
     private evalAST;
-    eval: (ast: Expr) => string | number | bigint | boolean | symbol | object | Expr[] | ((...args: any[]) => any) | Promise<Expr> | null | undefined;
+    eval: (ast: Expr) => string | number | bigint | boolean | symbol | object | Expr[] | JSFunction | Promise<Expr> | null | undefined;
     rep: (input: string) => string | undefined;
-    resume: (cont: Continuation, value: Expr) => string | number | bigint | boolean | symbol | object | Expr[] | ((...args: any[]) => any) | Promise<Expr> | null | undefined;
+    resume: (cont: Continuation, value: Expr) => string | number | bigint | boolean | symbol | object | Expr[] | JSFunction | Promise<Expr> | null | undefined;
     evalInBase: (ast: Expr) => void;
     derefBOR: (ast: Expr) => any;
-    wrapLambda: (ast: readonly Expr[]) => readonly Expr[] | ((...a: Expr[]) => string | number | bigint | boolean | symbol | object | Expr[] | ((...args: any[]) => any) | Promise<Expr> | null | undefined);
+    wrapLambda: (ast: readonly Expr[]) => readonly Expr[] | ((...a: Expr[]) => string | number | bigint | boolean | symbol | object | Expr[] | JSFunction | Promise<Expr> | null | undefined);
+}
+export declare class EnvWrapper {
+    private env;
+    private base;
+    constructor(env: Env, base: Base);
+    get: (name: string) => Expr;
+    has: (name: string) => boolean;
+    set: (name: string, value: Expr) => Expr;
 }
 export declare const TheGlobal: typeof globalThis;
 export default Interpreter;
