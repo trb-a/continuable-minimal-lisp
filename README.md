@@ -67,6 +67,14 @@ console.log(value); // or somwhere else.
 
 Limitations
 ==========
+ - If you are using webpack, You may encounter this warning message:
+   ````
+   WARNING in ./node_modules/continuable-minimal-lisp/dist/index.js 1:292-296
+   Critical dependency: the request of a dependency is an expression
+   ````
+   This message is annoying, but harmless. This is caused by the [parcel bundler](https://github.com/parcel-bundler/parcel/issues/2883)  
+   which we use for building package. We'll resolve it when Parcel fix [this issue](https://github.com/parcel-bundler/parcel/issues/2883)
+   (or switch to webpack or rollup).
  - Only for modern browsers. Only tested on newest Chrome at this moment.  
    Bug reports are welcome, but we never support IE.
  - Not tested on node.js environment at this moment (Maybe it's rare request).
