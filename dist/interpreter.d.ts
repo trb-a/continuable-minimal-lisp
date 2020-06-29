@@ -1,5 +1,5 @@
 export declare const LANGUAGE = "Continuable-miniMAL-Lisp";
-export declare const VERSION = "0.3.0";
+export declare const VERSION = "0.3.1";
 export declare type Expr = Expr[] | bigint | boolean | JSFunction | number | object | string | symbol | undefined | null;
 export declare type Env = [Record<string, Expr>, Env | null];
 declare type Base = {
@@ -32,6 +32,7 @@ export declare type Options = {
     env?: Env;
     loadCore?: boolean;
     debugMode?: boolean;
+    debugCore?: boolean;
     debugMax?: number;
     debugFilter?: (message: string) => boolean;
 };
@@ -53,6 +54,7 @@ export declare class Interpreter {
     private loadCore;
     debugCount: number;
     debugMode: boolean;
+    debugCore: boolean;
     debugMax: number;
     debugFilter: (message: string) => boolean;
     constructor(options?: Options);

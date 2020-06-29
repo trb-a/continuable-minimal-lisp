@@ -5,7 +5,7 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.3.0";
+export const VERSION = "0.3.1";
 
 // -------------------------------------------------------
 //                   Type definitions
@@ -53,7 +53,8 @@ export type Options = {
   base?: Base, // Upper of root environment.
   env?: Env, // Environment root (except base).
   loadCore?: boolean, // Load core on construct or not.
-  debugMode?: boolean, // Show debug messsage using console.log if true.
+  debugMode?: boolean, // Show debug messsage using console.log if true.(except loading core)
+  debugCore?: boolean, // Show debug message when loading core.
   debugMax?: number, // Throw error if debugCount exceeds this.
   debugFilter?: (message: string) => boolean, // Filter debug message, before checking debugMax.
 };
@@ -274,7 +275,8 @@ export class Interpreter {
 
   // for debugging
   public debugCount: number = 0; // Counts how may times debug message shown.
-  public debugMode: boolean = false; // Show debug messsage if true.
+  public debugMode: boolean = false; // Show debug messsage if true.except loading core.
+  public debugCore: boolean = false; // Show debug messsage if true on loading core.
   public debugMax: number = Infinity; // Throws error if debugCount exceeds this.
   public debugFilter: (message: string) => boolean = () => true;
 
@@ -284,7 +286,10 @@ export class Interpreter {
     deleteUndefined(options); // Don't give any undefined value to the options.
     Object.assign(this, options);
     if (this.loadCore) {
+      const debugMode = this.debugMode;
+      this.debugMode = this.debugCore;
       this.evalInBase(require("./core.json"));
+      this.debugMode = debugMode;
     }
   }
 
@@ -480,7 +485,7 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }
       const [, params, body, e] = f;
       if (typeof body === "function") {
         // JS lambda.
-        // Note: Unlike JS functions, JS lambda receive arguments via environemnt. 
+        // Note: Unlike JS functions, JS lambda receive arguments via environemnt.
         try {
           const jsLambdaFunc = body as JSLambdaFunction;
           return { ret: jsLambdaFunc(new EnvWrapper(newEnv(e!, params, args), base), interpreter) };
