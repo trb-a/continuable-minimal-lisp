@@ -4,3 +4,6 @@
 ## 2020-06-26 v0.3.1
   * Suppress debug message on loading core using option debugMode.
   * New option: debugCore.
+
+## 2020-06-30 v0.3.2
+  * exports isMacro

@@ -5,7 +5,7 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.3.1";
+export const VERSION = "0.3.2";
 
 // -------------------------------------------------------
 //                   Type definitions
@@ -32,6 +32,8 @@ export type BOR = { bor: string };
 // Applicables.
 export type Lambda = ["=>", string[], Exclude<Expr, JSFunction> | JSLambdaFunction, Env]; // JS Labmda or Lisp labmda
 
+export type Macro = ["~", Applicable];
+
 type JSFunction = (...args: any[]) => any;
 
 export type Continuation = {
@@ -41,7 +43,7 @@ export type Continuation = {
   lang: string,
   version: string,
 };
-type Applicable = Lambda | JSFunction | Continuation;
+type Applicable = Lambda | JSFunction | Continuation | Macro;
 
 // Evaluation stack.
 export type Eval = { parent: Expr[], index: number, env: Env, flag: string | null, handler: Eval | null };
@@ -164,17 +166,24 @@ export const isLambda = (x: any): x is Lambda =>
     (x[1] instanceof Array && x[1].every(a => typeof a === "string"))
   );
 
+export const isMacro = (x: any): x is Macro =>
+  x instanceof Array && x[0] === "~" && x.length === 2
+  && isApplicable(x[1]);
+
 // Determines if x is a JSFunction
 const isJSFunction = (x: any): x is JSFunction =>
   typeof x === "function";
 
 // Determines if x is a lambda, js function or continuation.
 export const isApplicable = (x: any): x is Applicable =>
-  isLambda(x) || isJSFunction(x) || isContinuation(x);
+  isLambda(x) || isJSFunction(x) || isContinuation(x) || isMacro(x);
 
 // Asserts if x is a lambda, js function or continuation.
 const assertApplicable: (x: any) => asserts x is Applicable = (x) =>
   isApplicable(x) || error(`${x} is not a applicable`);
+
+const assertMacro: (x: any) => asserts x is Macro = (x) =>
+  isMacro(x) || error(`${x} is not a macro`);
 
 // const assertJSFunction: (x: any) => asserts x is JSFunction = (x) =>
 //   typeof x === "function" || error(`${x} is not a JS function`);
@@ -344,7 +353,7 @@ export class Interpreter {
           // If the car is symbol, get the value from the environment
           // to determine if this is a macro form or coninuation form.
           const envv = (typeof node[0] === "string") ? this.derefBOR(findEnv(env, this.base, node[0])[0]) : null;
-          const formHandler = (envv instanceof Array && envv[0] === "~") ? (
+          const formHandler = isMacro(envv) ? (
             MacroHandler
           ) : (typeof node[0] === "string" && SpecialFormHandlers.hasOwnProperty(node[0])) ? (
             SpecialFormHandlers[node[0]]
@@ -515,8 +524,7 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }
 const MacroHandler: FormHandler = ({ node, env, base, interpreter }) => {
   assertSymbol(node[0]);
   const v = interpreter.derefBOR(findEnv(env, base, node[0])[0]);
-  assertList(v); // We can almost beleave this is OK. Check was done when defined.
-  assertApplicable(v[1]);
+  assertMacro(v);
   // Apply the applicable and re-evaluate after that ( = 2 reevals )
   return { ret: [v[1], ...node.slice(1)], reevals: [{ flag: "!" }, { flag: null }] };
 }

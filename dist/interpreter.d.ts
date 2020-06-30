@@ -1,5 +1,5 @@
 export declare const LANGUAGE = "Continuable-miniMAL-Lisp";
-export declare const VERSION = "0.3.1";
+export declare const VERSION = "0.3.2";
 export declare type Expr = Expr[] | bigint | boolean | JSFunction | number | object | string | symbol | undefined | null;
 export declare type Env = [Record<string, Expr>, Env | null];
 declare type Base = {
@@ -9,6 +9,7 @@ export declare type BOR = {
     bor: string;
 };
 export declare type Lambda = ["=>", string[], Exclude<Expr, JSFunction> | JSLambdaFunction, Env];
+export declare type Macro = ["~", Applicable];
 declare type JSFunction = (...args: any[]) => any;
 export declare type Continuation = {
     current: Eval;
@@ -17,7 +18,7 @@ export declare type Continuation = {
     lang: string;
     version: string;
 };
-declare type Applicable = Lambda | JSFunction | Continuation;
+declare type Applicable = Lambda | JSFunction | Continuation | Macro;
 export declare type Eval = {
     parent: Expr[];
     index: number;
@@ -42,6 +43,7 @@ export declare const cloneAST: (ast: any, map?: Map<any, any>) => Expr;
 export declare const isBOR: (base: Base, x: any) => x is BOR;
 export declare const isEnv: (x: any) => x is Env;
 export declare const isLambda: (x: any) => x is Lambda;
+export declare const isMacro: (x: any) => x is Macro;
 export declare const isApplicable: (x: any) => x is Applicable;
 export declare const isContinuation: (x: any) => x is Continuation;
 export declare const newEnv: (upper: Env, symbols: string[], values: Expr[], variadic?: boolean) => Env;
