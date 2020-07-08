@@ -1,5 +1,5 @@
 export declare const LANGUAGE = "Continuable-miniMAL-Lisp";
-export declare const VERSION = "0.3.3";
+export declare const VERSION = "0.4.0";
 export declare type Expr = Expr[] | bigint | boolean | JSFunction | number | object | string | symbol | undefined | null;
 export declare type Env = [Record<string, Expr>, Env | null];
 declare type Base = {
@@ -24,6 +24,7 @@ export declare type Eval = {
     index: number;
     env: Env;
     flag: string | null;
+    dynamicEnv: Env;
     handler: Eval | null;
 };
 export declare type EvalStack = Eval[];
@@ -48,11 +49,12 @@ export declare const isApplicable: (x: any) => x is Applicable;
 export declare const isContinuation: (x: any) => x is Continuation;
 export declare const newEnv: (upper: Env, symbols: string[], values: Expr[], variadic?: boolean) => Env;
 export declare const setEnv: <T extends Expr>(env: Env, symbol: string, value: T) => T;
-export declare const findEnv: (env: Env, base: Base, symbol: string) => [Expr, boolean, boolean];
+export declare const findEnv: (env: Env, base: Base | null, symbol: string) => [Expr, boolean, boolean];
 export declare class Interpreter {
     private stackMax;
     private base;
     private env;
+    private dynamicEnv;
     private loadCore;
     debugCount: number;
     debugMode: boolean;
@@ -71,14 +73,16 @@ export declare class Interpreter {
 }
 export declare class EnvWrapper {
     private env;
-    private callerEnv;
+    private dynamicEnv;
     private base;
-    constructor(env: Env, callerEnv: Env, base: Base);
+    constructor(env: Env, dynamicEnv: Env, base: Base);
     get: (name: string) => Expr;
     has: (name: string) => boolean;
     set: (name: string, value: Expr) => Expr;
-    callerGet: (name: string) => Expr;
-    callerHas: (name: string) => boolean;
+    dynamicGet: (name: string) => Expr;
+    dynamicHas: (name: string) => boolean;
+    dynamicSet: (name: string, value: Expr) => Expr;
+    dynamicSetLocal: (name: string, value: Expr) => Expr;
 }
 export declare const TheGlobal: typeof globalThis;
 export default Interpreter;

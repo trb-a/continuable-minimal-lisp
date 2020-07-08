@@ -5,7 +5,7 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.3.3";
+export const VERSION = "0.4.0";
 
 // -------------------------------------------------------
 //                   Type definitions
@@ -46,7 +46,7 @@ export type Continuation = {
 type Applicable = Lambda | JSFunction | Continuation | Macro;
 
 // Evaluation stack.
-export type Eval = { parent: Expr[], index: number, env: Env, flag: string | null, handler: Eval | null };
+export type Eval = { parent: Expr[], index: number, env: Env, flag: string | null, dynamicEnv: Env, handler: Eval | null };
 export type EvalStack = Eval[];
 
 // Interpreter options.
@@ -65,6 +65,7 @@ export type Options = {
 type FormHandler = (args: {
   node: Readonly<Expr[]>,
   env: Env,
+  dynamicEnv: Env,
   base: Base,
   flag: string | null,
   handler: Eval | null,
@@ -83,6 +84,7 @@ export type Fn = ["fn", string[], Exclude<Expr, JSFunction> | JSLambdaFunction];
 // Others.
 type Try = ["try", Expr, [any, "string", Expr]];
 type Let = ["let", Expr[], Expr];
+type DynamicLet = ["dynamic-let", Expr[], Expr];
 
 // -------------------------------------------------------
 //                   Utilities
@@ -229,6 +231,12 @@ const assertLet: (x: any) => asserts x is Let = (x) => (
   x[1] instanceof Array && x.length >= 3
 ) || error(`${x} is not a let form or malformed`);
 
+// Assert x is "dynamic-let" form
+const assertDynamicLet: (x: any) => asserts x is DynamicLet = (x) => (
+  x instanceof Array && x[0] === "dynamic-let" &&
+  x[1] instanceof Array && x.length >= 3
+) || error(`${x} is not a let form or malformed`);
+
 // -------------------------------------------------------
 //  Create, set data to, and get data from the environment.
 // -------------------------------------------------------
@@ -256,12 +264,12 @@ export const setEnv = <T extends Expr>(env: Env, symbol: string, value: T): T =>
 
 // get value and whether existance of the symbol from environment or Base.
 // returns: [<found value or null>, <found or not>, <BOR or not>]
-export const findEnv = (env: Env, base: Base, symbol: string): [Expr, boolean, boolean] => {
+export const findEnv = (env: Env, base: Base | null, symbol: string): [Expr, boolean, boolean] => {
   for (let e: Env | null = env; !!e; e = e[1]) {
     if (e[0].hasOwnProperty(symbol)) {
       return [e[0][symbol], true, false];
     } else if (
-      !e[1] && symbol in base && base[symbol] !== null &&
+      !e[1] && base && symbol in base && base[symbol] !== null &&
       (typeof base[symbol] === "object" || typeof base[symbol] === "function")
     ) {
       const bor: BOR = { bor: symbol }; // Create BOR here.
@@ -270,6 +278,9 @@ export const findEnv = (env: Env, base: Base, symbol: string): [Expr, boolean, b
   }
   return [null, false, false];
 };
+
+// Get root of env (except base)
+const getEnvRoot = (e: Env): Env => e[1] ? getEnvRoot(e[1]) : e;
 
 // -------------------------------------------------------
 //               Interpreter class
@@ -280,6 +291,7 @@ export class Interpreter {
   /* eslint-disable-next-line no-use-before-define */
   private base: Base = DEFAULT_BASE; // upper of root environment.
   private env: Env = [{}, null]; // environment root (except base).
+  private dynamicEnv: Env = [{}, null]; // dynamic environment root
   private loadCore: boolean = true; // load core on construct or not.
 
   // for debugging
@@ -316,15 +328,15 @@ export class Interpreter {
   }
 
   // Evaluates the given AST and retuns the result.
-  private evalAST = (ast: Expr, env = this.env): Expr | Promise<Expr> => {
+  private evalAST = (ast: Expr, env = this.env, dynamicEnv = this.dynamicEnv): Expr | Promise<Expr> => {
 
     // Root container contains the given AST.
     // This enables replacement of the value even for scalar value.
     const root = [ast];
+
     // Evaluation stack contains evaluation requests with environment.
     // The initial value includes the root container above.
-
-    const stack: EvalStack = [{ parent: root, index: 0, env, flag: null, handler: null }];
+    const stack: EvalStack = [{ parent: root, index: 0, env, dynamicEnv, flag: null, handler: null }];
 
     // A utility function the push evaluation requests on the stack.
     // The evaluation will be done in the given order.
@@ -336,9 +348,9 @@ export class Interpreter {
     while (stack.length) {
       this.debug("Current eval-stack length, eval-stack: ", stack.length, stack);
       const current = stack.pop()!;
-      const { parent, index, env, flag, handler } = current;
+      const { parent, index, env, dynamicEnv, flag, handler } = current;
       const node: Expr = parent[index];
-      this.debug("Next evaluating AST node, environment, flag: ", node, env, flag);
+      this.debug("Next evaluating AST node, env, dynamicEnv, flag: ", node, env, dynamicEnv, flag);
 
       try {
         if (typeof node === "string") {
@@ -363,7 +375,7 @@ export class Interpreter {
 
           // Apply the selected form handler.
           const { ret, subevals, reevals } = formHandler({
-            node, env, base: this.base, flag, handler,
+            node, env, base: this.base, dynamicEnv, flag, handler,
             cont: { current, stack, lang: LANGUAGE, version: VERSION },
             interpreter: this,
           });
@@ -373,6 +385,7 @@ export class Interpreter {
             parent: ev.parent ?? parent,
             index: ev.index ?? index,
             env: ev.env ?? env,
+            dynamicEnv: ev.dynamicEnv ?? dynamicEnv,
             flag: ev.flag ?? null,
             handler: ev.handler ?? handler
           }));
@@ -380,6 +393,7 @@ export class Interpreter {
             parent: ev.parent ?? parent,
             index: ev.index ?? index,
             env: ev.env ?? env,
+            dynamicEnv: ev.dynamicEnv ?? dynamicEnv,
             flag: ev.flag ?? null,
             handler: ev.handler ?? handler
           }));
@@ -412,11 +426,11 @@ export class Interpreter {
           }
         }
       } finally {
-        this.debug("Evaluation Done. Node, environment: ", parent[index], env);
+        this.debug("Evaluation Done. Node, env, dynamicEnv: ", parent[index], env, dynamicEnv);
       }
     }
 
-    // return the evaluated value in the container at last.
+    // Return the evaluated value in the container at last.
     this.debug("Evaluatin finished. Result: ", root[0]);
     return root[0];
   }
@@ -469,7 +483,7 @@ export class Interpreter {
 // -------------------------------------------------------
 
 // Standard form
-const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }) => {
+const StandardFormHandler: FormHandler = ({ node, env, dynamicEnv, base, flag, interpreter }) => {
   const f = interpreter.derefBOR(node[0]);
   if (!flag && !isApplicable(f)) {
     const cn = [...node];
@@ -497,7 +511,7 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }
         // Note: Unlike JS functions, JS lambda receive arguments via environemnt.
         try {
           const jsLambdaFunc = body as JSLambdaFunction;
-          return { ret: jsLambdaFunc(new EnvWrapper(newEnv(e!, params, args), env, base), interpreter) };
+          return { ret: jsLambdaFunc(new EnvWrapper(newEnv(e!, params, args), dynamicEnv, base), interpreter) };
         } catch (e) {
           if (isContinuation(e)) {
             throw "Javascript function can not throw any continuation."
@@ -507,7 +521,7 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }
       } else {
         // Lisp lambda. create a new environment with arguments mapped to parameters
         // then evaluate the body.
-        return { ret: body, reevals: [{ env: newEnv(e!, params!, args) }] };
+        return { ret: body, reevals: [{ env: newEnv(e!, params!, args)}] };
       }
     } else {
       throw `${String(f)} is not applicable`;
@@ -588,12 +602,21 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
       return { ret: cn, reevals: [{ flag: "!" }], subevals: [{ parent: cn, index: 2 }] };
     } else {
       const [, symbol, v = null] = node;
-      // We don't allow JS functions stored in environment.
-      if (typeof v === "function") {
-        throw "Can't define JS function (Set it as property in the base object instead)";
-      }
       assertSymbol(symbol);
       return { ret: setEnv(env, symbol, v) };
+    }
+  },
+
+  // defdynamic - define dynamic variable
+  defdynamic: ({ node, dynamicEnv, flag }) => {
+    if (!flag) {
+      const cn = [...node];
+      return { ret: cn, reevals: [{ flag: "!" }], subevals: [{ parent: cn, index: 2 }] };
+    } else {
+      const [, symbol, v = null] = node;
+      assertSymbol(symbol);
+      setEnv(getEnvRoot(dynamicEnv), symbol, v);
+      return { ret: v };
     }
   },
 
@@ -706,13 +729,14 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   // try-catch
   // Note: catch clause's car does't have any meaning in minimal.
   // Note: param is only one, not like `fn'.
-  try: ({ node, env, flag, cont, handler }) => {
+  try: ({ node, env, dynamicEnv, flag, cont, handler }) => {
     assertTry(node);
     if (!flag) {
       const newErrorHandler: Eval = {
         parent: cont.current.parent,
         index: cont.current.index,
         env: newEnv(env, [], []), // catch-clause runs on new env.
+        dynamicEnv,
         flag: "!!", // Evaluate lambda.
         handler, // Parent's error handler.
       };
@@ -809,6 +833,36 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
     }
   },
 
+
+  // dynamic-let - new dynamic environment with bindings
+  "dynamic-let": ({ node, dynamicEnv, flag }) => {
+    assertDynamicLet(node);
+    if (!flag) {
+      const [f, plist, body] = node;
+      const cplist = [...plist];
+      return {
+        ret: [f, cplist, body],
+        subevals: cplist.map((v, i) => i).filter(i => (i % 2) === 1).map(i => ({parent: cplist, index: i})),
+        reevals: [{flag: "!"}],
+      };
+    } else {
+      const [, plist, body] = node;
+      if (plist.length % 2 === 1) {
+        plist.push(null);
+      }
+      const ppairs = plist.reduce<[Expr, Expr][]>(
+        (acc, v, i) => i % 2 ? acc : acc.concat([[plist[i], plist[i + 1]]]),
+        []
+      );
+      const nenv = newEnv(dynamicEnv, [],[]);
+      ppairs.forEach(([k, v]) => setEnv(nenv, String(k), v));
+      return {
+        ret: body,
+        reevals: [{ dynamicEnv: nenv }],
+      };
+    }
+  },
+
   // do - multiple forms (for side-effects)
   // Note: `do' MUST dispose the result of evalation except the last one.
   // Note: last one substitutes the `do' form and re-evaluated not increasing stack.
@@ -853,6 +907,15 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
     return { ret: [cont, ...args], reevals: [{ flag: "!" }] }
   },
   // Note: maybe we can implement a call/cc here.
+
+  // dynamic - Look up and get value of dynamic variable.
+  dynamic: ({ node, dynamicEnv }) => {
+    const [, name] = node;
+    assertSymbol(name);
+    const [v, found] = findEnv(dynamicEnv, null, name);
+    return { ret: found ? v : error(`dynamic variable ${name} not found`) };
+  }
+
 };
 
 // -------------------------------------------------------
@@ -863,18 +926,20 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
 // Used for passing environment information to JS lambdas.
 export class EnvWrapper {
   private env: Env;
-  private callerEnv: Env;
+  private dynamicEnv: Env;
   private base: Base;
-  constructor(env: Env, callerEnv: Env, base: Base) {
+  constructor(env: Env, dynamicEnv: Env, base: Base) {
     this.env = env;
-    this.callerEnv = callerEnv;
+    this.dynamicEnv = dynamicEnv;
     this.base = base;
   }
   get = (name: string) => findEnv(this.env, this.base, name)[0];
   has = (name: string) => findEnv(this.env, this.base, name)[1];
   set = (name: string, value: Expr) => setEnv(this.env, name, value);
-  callerGet = (name: string) => findEnv(this.callerEnv, this.base, name)[0];
-  callerHas = (name: string) => findEnv(this.callerEnv, this.base, name)[1];
+  dynamicGet = (name: string) => findEnv(this.dynamicEnv, this.base, name)[0];
+  dynamicHas = (name: string) => findEnv(this.dynamicEnv, this.base, name)[1];
+  dynamicSet = (name: string, value: Expr) => setEnv(getEnvRoot(this.dynamicEnv), name, value);
+  dynamicSetLocal = (name: string, value: Expr) => setEnv(this.dynamicEnv, name, value);
 }
 
 // -------------------------------------------------------

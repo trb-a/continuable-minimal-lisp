@@ -10,3 +10,9 @@
 
 ## 2020-07-08 v0.3.3
   * Added callerGet/callerHas method to EnvWrapper.
+
+## 2020-07-08 v0.4.0
+  * Introduced dynamic variables similar to ISLISP.
+  * Deleted callerGet/callerHas method from EnvWrapper.
+  * Added dynamicGet/dynamicHas/dynamicSet method to EnvWrapper.
+  * Added dynamic dynamic-let defdynamic function.
