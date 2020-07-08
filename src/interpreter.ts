@@ -5,7 +5,7 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.3.2";
+export const VERSION = "0.3.3";
 
 // -------------------------------------------------------
 //                   Type definitions
@@ -497,7 +497,7 @@ const StandardFormHandler: FormHandler = ({ node, env, base, flag, interpreter }
         // Note: Unlike JS functions, JS lambda receive arguments via environemnt.
         try {
           const jsLambdaFunc = body as JSLambdaFunction;
-          return { ret: jsLambdaFunc(new EnvWrapper(newEnv(e!, params, args), base), interpreter) };
+          return { ret: jsLambdaFunc(new EnvWrapper(newEnv(e!, params, args), env, base), interpreter) };
         } catch (e) {
           if (isContinuation(e)) {
             throw "Javascript function can not throw any continuation."
@@ -863,14 +863,18 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
 // Used for passing environment information to JS lambdas.
 export class EnvWrapper {
   private env: Env;
+  private callerEnv: Env;
   private base: Base;
-  constructor(env: Env, base: Base) {
+  constructor(env: Env, callerEnv: Env, base: Base) {
     this.env = env;
+    this.callerEnv = callerEnv;
     this.base = base;
   }
   get = (name: string) => findEnv(this.env, this.base, name)[0];
   has = (name: string) => findEnv(this.env, this.base, name)[1];
   set = (name: string, value: Expr) => setEnv(this.env, name, value);
+  callerGet = (name: string) => findEnv(this.callerEnv, this.base, name)[0];
+  callerHas = (name: string) => findEnv(this.callerEnv, this.base, name)[1];
 }
 
 // -------------------------------------------------------

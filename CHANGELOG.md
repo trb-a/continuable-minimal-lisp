@@ -6,4 +6,7 @@
   * New option: debugCore.
 
 ## 2020-06-30 v0.3.2
-  * exports isMacro
+  * Exports isMacro.
+
+## 2020-07-08 v0.3.3
+  * Added callerGet/callerHas method to EnvWrapper.
