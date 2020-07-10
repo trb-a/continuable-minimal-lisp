@@ -16,3 +16,6 @@
   * Deleted callerGet/callerHas method from EnvWrapper.
   * Added dynamicGet/dynamicHas/dynamicSet method to EnvWrapper.
   * Added dynamic dynamic-let defdynamic function.
+
+## 2020-07-10 v0.4.1
+  * Added callerGet/callerHas method to EnvWrapper again.
