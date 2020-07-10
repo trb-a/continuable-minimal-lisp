@@ -5,7 +5,7 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.4.0";
+export const VERSION = "0.4.1";
 
 // -------------------------------------------------------
 //                   Type definitions
@@ -511,7 +511,7 @@ const StandardFormHandler: FormHandler = ({ node, env, dynamicEnv, base, flag, i
         // Note: Unlike JS functions, JS lambda receive arguments via environemnt.
         try {
           const jsLambdaFunc = body as JSLambdaFunction;
-          return { ret: jsLambdaFunc(new EnvWrapper(newEnv(e!, params, args), dynamicEnv, base), interpreter) };
+          return { ret: jsLambdaFunc(new EnvWrapper(newEnv(e!, params, args), dynamicEnv, env, base), interpreter) };
         } catch (e) {
           if (isContinuation(e)) {
             throw "Javascript function can not throw any continuation."
@@ -927,19 +927,23 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
 export class EnvWrapper {
   private env: Env;
   private dynamicEnv: Env;
+  private callerEnv: Env;
   private base: Base;
-  constructor(env: Env, dynamicEnv: Env, base: Base) {
+  constructor(env: Env, dynamicEnv: Env, callerEnv: Env, base: Base) {
     this.env = env;
     this.dynamicEnv = dynamicEnv;
+    this.callerEnv = callerEnv;
     this.base = base;
   }
   get = (name: string) => findEnv(this.env, this.base, name)[0];
   has = (name: string) => findEnv(this.env, this.base, name)[1];
   set = (name: string, value: Expr) => setEnv(this.env, name, value);
-  dynamicGet = (name: string) => findEnv(this.dynamicEnv, this.base, name)[0];
-  dynamicHas = (name: string) => findEnv(this.dynamicEnv, this.base, name)[1];
+  dynamicGet = (name: string) => findEnv(this.dynamicEnv, null, name)[0];
+  dynamicHas = (name: string) => findEnv(this.dynamicEnv, null, name)[1];
   dynamicSet = (name: string, value: Expr) => setEnv(getEnvRoot(this.dynamicEnv), name, value);
   dynamicSetLocal = (name: string, value: Expr) => setEnv(this.dynamicEnv, name, value);
+  callerGet = (name: string) => findEnv(this.callerEnv, this.base, name)[0];
+  callerHas = (name: string) => findEnv(this.callerEnv, this.base, name)[1];
 }
 
 // -------------------------------------------------------

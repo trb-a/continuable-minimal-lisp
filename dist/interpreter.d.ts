@@ -1,5 +1,5 @@
 export declare const LANGUAGE = "Continuable-miniMAL-Lisp";
-export declare const VERSION = "0.4.0";
+export declare const VERSION = "0.4.1";
 export declare type Expr = Expr[] | bigint | boolean | JSFunction | number | object | string | symbol | undefined | null;
 export declare type Env = [Record<string, Expr>, Env | null];
 declare type Base = {
@@ -74,8 +74,9 @@ export declare class Interpreter {
 export declare class EnvWrapper {
     private env;
     private dynamicEnv;
+    private callerEnv;
     private base;
-    constructor(env: Env, dynamicEnv: Env, base: Base);
+    constructor(env: Env, dynamicEnv: Env, callerEnv: Env, base: Base);
     get: (name: string) => Expr;
     has: (name: string) => boolean;
     set: (name: string, value: Expr) => Expr;
@@ -83,6 +84,8 @@ export declare class EnvWrapper {
     dynamicHas: (name: string) => boolean;
     dynamicSet: (name: string, value: Expr) => Expr;
     dynamicSetLocal: (name: string, value: Expr) => Expr;
+    callerGet: (name: string) => Expr;
+    callerHas: (name: string) => boolean;
 }
 export declare const TheGlobal: typeof globalThis;
 export default Interpreter;
