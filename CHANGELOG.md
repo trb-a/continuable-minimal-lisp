@@ -19,3 +19,8 @@
 
 ## 2020-07-10 v0.4.1
   * Added callerGet/callerHas method to EnvWrapper again.
+
+## 2020-07-10 v0.4.2
+  * Added half-macros. half-macros evaluate arguments in caller's environment
+    and return value is evaluated in the caller's environment too.
+  .

@@ -35,6 +35,10 @@ Features
      Note: whether it can serialized or not depends on what kind of data you treat 
      in the code and serialization tool you select. For example, if you keep some
      Javascript function in the environment, serialization will be very difficult.
+ - Dynamic variables
+   - Similar to ISLisp's dynamic variables. (dynamic/defdynamic/dynamic-let)
+ - Half macros
+   - Like macros, but arguments are evaluated in the caller's environment.
 
 Online REPL Demo
 ==========

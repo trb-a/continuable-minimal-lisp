@@ -5,7 +5,7 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.4.1";
+export const VERSION = "0.4.2";
 
 // -------------------------------------------------------
 //                   Type definitions
@@ -34,6 +34,8 @@ export type Lambda = ["=>", string[], Exclude<Expr, JSFunction> | JSLambdaFuncti
 
 export type Macro = ["~", Applicable];
 
+export type HalfMacro = ["~~", Applicable];
+
 type JSFunction = (...args: any[]) => any;
 
 export type Continuation = {
@@ -43,7 +45,7 @@ export type Continuation = {
   lang: string,
   version: string,
 };
-type Applicable = Lambda | JSFunction | Continuation | Macro;
+type Applicable = Lambda | JSFunction | Continuation | Macro | HalfMacro;
 
 // Evaluation stack.
 export type Eval = { parent: Expr[], index: number, env: Env, flag: string | null, dynamicEnv: Env, handler: Eval | null };
@@ -172,13 +174,17 @@ export const isMacro = (x: any): x is Macro =>
   x instanceof Array && x[0] === "~" && x.length === 2
   && isApplicable(x[1]);
 
+  export const isHalfMacro = (x: any): x is HalfMacro =>
+  x instanceof Array && x[0] === "~~" && x.length === 2
+  && isApplicable(x[1]);
+
 // Determines if x is a JSFunction
 const isJSFunction = (x: any): x is JSFunction =>
   typeof x === "function";
 
 // Determines if x is a lambda, js function or continuation.
 export const isApplicable = (x: any): x is Applicable =>
-  isLambda(x) || isJSFunction(x) || isContinuation(x) || isMacro(x);
+  isLambda(x) || isJSFunction(x) || isContinuation(x) || isMacro(x) || isHalfMacro(x);
 
 // Asserts if x is a lambda, js function or continuation.
 const assertApplicable: (x: any) => asserts x is Applicable = (x) =>
@@ -186,6 +192,9 @@ const assertApplicable: (x: any) => asserts x is Applicable = (x) =>
 
 const assertMacro: (x: any) => asserts x is Macro = (x) =>
   isMacro(x) || error(`${x} is not a macro`);
+
+const assertHalfMacro: (x: any) => asserts x is HalfMacro = (x) =>
+  isHalfMacro(x) || error(`${x} is not a half macro`);
 
 // const assertJSFunction: (x: any) => asserts x is JSFunction = (x) =>
 //   typeof x === "function" || error(`${x} is not a JS function`);
@@ -363,10 +372,12 @@ export class Interpreter {
 
           // Select form handler.
           // If the car is symbol, get the value from the environment
-          // to determine if this is a macro form or coninuation form.
+          // to determine if this is a macro / half macro form or coninuation form.
           const envv = (typeof node[0] === "string") ? this.derefBOR(findEnv(env, this.base, node[0])[0]) : null;
           const formHandler = isMacro(envv) ? (
             MacroHandler
+          ) : (isHalfMacro(envv) || (isHalfMacro(this.derefBOR(node[0])) && !!flag)) ? (
+            HalfMacroHandler
           ) : (typeof node[0] === "string" && SpecialFormHandlers.hasOwnProperty(node[0])) ? (
             SpecialFormHandlers[node[0]]
           ) : (isContinuation(node[0]) || isContinuation(envv)) ? (
@@ -533,7 +544,7 @@ const StandardFormHandler: FormHandler = ({ node, env, dynamicEnv, base, flag, i
 // Note: Differences macros and non-special functions are
 //   1. Macros don't evaluate the arguments.
 //   2. Macros request re-evaluation of the results.
-//   3. Macros can be applied by symbols.
+//   3. Macros can be applied only by symbols.
 //   4. (Undocumented feature): can wrap special functions like fn/def/etc
 const MacroHandler: FormHandler = ({ node, env, base, interpreter }) => {
   assertSymbol(node[0]);
@@ -541,6 +552,29 @@ const MacroHandler: FormHandler = ({ node, env, base, interpreter }) => {
   assertMacro(v);
   // Apply the applicable and re-evaluate after that ( = 2 reevals )
   return { ret: [v[1], ...node.slice(1)], reevals: [{ flag: "!" }, { flag: null }] };
+}
+
+// Half macro form
+// Half macros are like macros, but auguments are evaluated before applying macro function.
+const HalfMacroHandler: FormHandler = ({ node, env, base, flag, interpreter }) => {
+  if (!flag) {
+    // Request subevaluation.
+    // Note: we must keep BOR while subevaluation.
+    assertSymbol(node[0]);
+    const v = interpreter.derefBOR(findEnv(env, base, node[0])[0]);
+    assertHalfMacro(v);
+    const cn = [...node];
+    return {
+      ret: cn,
+      subevals: cn.map((v, index) => ({ parent: cn, index })),
+      reevals: [{ flag: "!" }]
+    };
+  } else {
+    // Apply the applicable and re-evaluate after that ( = 2 reevals )
+    const v = interpreter.derefBOR(node[0]);
+    assertHalfMacro(v);
+    return { ret: [v[1], ...node.slice(1)], reevals: [{ flag: "!" }, { flag: null }] };
+  }
 }
 
 // Continuation form
@@ -622,6 +656,18 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
 
   // ~ - define macro
   "~": ({ node, flag }) => {
+    const cn = [...node];
+    if (!flag) {
+      return { ret: cn, reevals: [{ flag: "!" }], subevals: [{ parent: cn, index: 1 }] };
+    } else {
+      // Check if the evaluated value is applicable.
+      assertApplicable(cn[1]);
+      return { ret: cn };
+    }
+  },
+
+  // ~~ - define half macro
+  "~~": ({ node, flag }) => {
     const cn = [...node];
     if (!flag) {
       return { ret: cn, reevals: [{ flag: "!" }], subevals: [{ parent: cn, index: 1 }] };

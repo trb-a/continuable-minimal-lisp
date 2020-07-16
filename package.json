@@ -1,6 +1,6 @@
 {
   "name": "continuable-minimal-lisp",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Continuable miniMAL Lisp is a miniMAL lisp implementation with suspend/resume support.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
