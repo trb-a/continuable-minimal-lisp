@@ -1,5 +1,5 @@
 export declare const LANGUAGE = "Continuable-miniMAL-Lisp";
-export declare const VERSION = "0.4.2";
+export declare const VERSION = "0.4.3";
 export declare type Expr = Expr[] | bigint | boolean | JSFunction | number | object | string | symbol | undefined | null;
 export declare type Env = [Record<string, Expr>, Env | null];
 declare type Base = {
@@ -15,7 +15,7 @@ declare type JSFunction = (...args: any[]) => any;
 export declare type Continuation = {
     current: Eval;
     stack: EvalStack;
-    info?: Expr;
+    info: Expr | null;
     lang: string;
     version: string;
 };
@@ -42,6 +42,7 @@ export declare type Options = {
 export declare type JSLambdaFunction = (env: EnvWrapper, itrp: Interpreter) => Expr;
 export declare type Fn = ["fn", string[], Exclude<Expr, JSFunction> | JSLambdaFunction];
 export declare const cloneAST: (ast: any, map?: Map<any, any>) => Expr;
+export declare const isPromiseLike: <T, S>(obj: S | PromiseLike<T>) => obj is PromiseLike<T>;
 export declare const isBOR: (base: Base, x: any) => x is BOR;
 export declare const isEnv: (x: any) => x is Env;
 export declare const isLambda: (x: any) => x is Lambda;
@@ -72,6 +73,7 @@ export declare class Interpreter {
     evalInBase: (ast: Expr) => void;
     derefBOR: (ast: Expr) => any;
     wrapLambda: (ast: readonly Expr[]) => readonly Expr[] | ((...a: Expr[]) => string | number | bigint | boolean | symbol | object | Expr[] | JSFunction | Promise<Expr> | null | undefined);
+    evalAsync: (expr: Expr) => PromiseLike<Expr>;
 }
 export declare class EnvWrapper {
     private env;
@@ -88,6 +90,24 @@ export declare class EnvWrapper {
     dynamicSetLocal: (name: string, value: Expr) => Expr;
     callerGet: (name: string) => Expr;
     callerHas: (name: string) => boolean;
+}
+export declare class ContinuablePromise implements PromiseLike<void> {
+    private interpreter;
+    private coninuation;
+    private resolvedValue?;
+    private rejectedReason;
+    private status;
+    private resolve;
+    private reject;
+    private promise;
+    constructor(interpreter: Interpreter, promise: any, continuation: Continuation);
+    isFulfilled(): boolean;
+    isRejected(): boolean;
+    isPending(): boolean;
+    reason(): any;
+    resume(): string | number | bigint | boolean | symbol | object | Expr[] | JSFunction | Promise<Expr> | null | undefined;
+    then<TResult1 = void, TResult2 = never>(onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): PromiseLike<TResult1 | TResult2>;
+    catch(onRejected?: (reason: any) => PromiseLike<never>): Promise<void>;
 }
 export declare const TheGlobal: typeof globalThis;
 export default Interpreter;
