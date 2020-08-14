@@ -23,4 +23,8 @@
 ## 2020-07-10 v0.4.2
   * Added half-macros. half-macros evaluate arguments in caller's environment
     and return value is evaluated in the caller's environment too.
-  .
+
+## 2020-08-13 v0.4.3
+  * Added "await" function and "evalAsync" method on Interpreter class.
+  * Added isPromiseLike, ContinuablePromise class to support above.
+  * Make Continuation's "info" property not be optional. Set null instead.

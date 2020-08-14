@@ -27,18 +27,29 @@ Features
    - Suspend wherever you want in Lisp.  
      When `suspend' function is evaluated, it throws a `Continuation' object.   
      Note: Javascript functions / methods can't throw any Continuation object.
-   - Resume from the suspended point.
+   - Resume from the suspended point.  
      Giving a `Continuation' object to Interpreter's resume method, it resumes
      evaluation from the point where `suspend' have been evaluated. Even you can
      call `resume' in your Lisp code if you like.
    - Suspended state can be serialized using YAML or other serialization tools.  
-     Note: whether it can serialized or not depends on what kind of data you treat 
-     in the code and serialization tool you select. For example, if you keep some
+     Note: whether it can serialized or not depends on what kind of data you treat
+     in the code and serialization tool you select. For example, if you keep some 
      Javascript function in the environment, serialization will be very difficult.
  - Dynamic variables
    - Similar to ISLisp's dynamic variables. (dynamic/defdynamic/dynamic-let)
  - Half macros
-   - Like macros, but arguments are evaluated in the caller's environment.
+   - Like macros, but arguments are evaluated in the caller's environment.  
+     This function is usefull if you want to implement a function with javascript
+     but the return value is evaluated as a lisp. (ex. "suspend").
+ - Wait for promises like Javascript's async/await.
+   - With "evalAsync" method of the interpreter, ["await" &lt;promise&gt;] can work
+     like Javascript's `await'. ["await" &lt;promise&gt;] waits until the promise
+     resolves, and resumes after the promise have been resolved.
+   - "evalAsync" methods returns a PromiseLike. you can treat the returned value
+     by async/await.
+   - Without using "evalAsync" method, "await" throws ContinuablePromise instance.
+     ContinuablePromise can resume the evaluation after the promise have been
+     resolved..
 
 Online REPL Demo
 ==========
@@ -90,8 +101,6 @@ Limitations
 
 TODO
 =======
- - JS async function support. When calling JS async function await until resolved and resume automatically.  
-   This enables network request (like fetch()) in a lisp function. (if requested or as necessary)
  - Explanation about BOR, Calling JS function, difference between between Lisp function Lisp labmda,  
    Lisp macro, JS (labmda) macro, special forms. (if requested)
 

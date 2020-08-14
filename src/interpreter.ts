@@ -5,7 +5,7 @@
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.4.2";
+export const VERSION = "0.4.3";
 
 // -------------------------------------------------------
 //                   Type definitions
@@ -41,7 +41,7 @@ type JSFunction = (...args: any[]) => any;
 export type Continuation = {
   current: Eval,
   stack: EvalStack,
-  info?: Expr, // Can set a information whatever.
+  info: Expr | null, // Can set a information whatever.
   lang: string,
   version: string,
 };
@@ -125,9 +125,9 @@ const deleteUndefined = (obj: any): void => {
   }
 }
 
-// const isPromise = <T, S>(obj: PromiseLike<T> | S): obj is PromiseLike<T> =>
-//   !!obj && (typeof obj === "object" || typeof obj === "function") &&
-//   typeof (obj as any).then === "function";
+export const isPromiseLike = <T, S>(obj: PromiseLike<T> | S): obj is PromiseLike<T> =>
+  !!obj && (typeof obj === "object" || typeof obj === "function") &&
+  typeof (obj as any).then === "function";
 
 // -------------------------------------------------------
 //               Type guards / asserts
@@ -323,6 +323,7 @@ export class Interpreter {
     }
   }
 
+
   // Show debug message on console.
   private debug = (message: string, ...args: any[]) => {
     if (!this.debugMode || !this.debugFilter(message)) {
@@ -387,7 +388,7 @@ export class Interpreter {
           // Apply the selected form handler.
           const { ret, subevals, reevals } = formHandler({
             node, env, base: this.base, dynamicEnv, flag, handler,
-            cont: { current, stack, lang: LANGUAGE, version: VERSION },
+            cont: { current, stack, lang: LANGUAGE, version: VERSION, info: null },
             interpreter: this,
           });
 
@@ -417,6 +418,10 @@ export class Interpreter {
         if (isContinuation(e)) {
           // Thrown continuation does not be caught by try-catch.
           this.debug("Suspend. Continuation: ", e);
+          throw e;
+        } else if (e instanceof ContinuablePromise) {
+          // Thrown ContinuablePromise does not be caught by try-catch too.
+          this.debug("Suspend. ContinuablePomise: ", e);
           throw e;
         } else {
           // Exception.
@@ -487,6 +492,34 @@ export class Interpreter {
   public wrapLambda = (ast: readonly Expr[]) => isLambda(ast)
     ? (...a: Expr[]) => this.evalAST([["`", ast], ...a])
     : ast;
+
+  // This method can treat ["await", <a Promise/PromiseLike>] as if Javascript's "await"
+  // function. Returns a Promise(or a PromiseLike) that resolves with the final
+  // evaluated value of the given expression.
+  public evalAsync = (expr: Expr): PromiseLike<Expr> => {
+    return new Promise((resolve, reject) => {
+      // evaluates expr or Continuous promise recursively.
+      // Note: promise must be fulfilled when calling func().
+      const func = (exprOrPromise: Expr | ContinuablePromise) => {
+        try {
+          if (exprOrPromise instanceof ContinuablePromise) {
+            resolve(exprOrPromise.resume());
+          } else {
+            resolve(this.eval(exprOrPromise));
+          }
+        } catch (e) {
+          if (e instanceof ContinuablePromise) {
+            e.then(()=>func(e), (err)=>reject(err));
+          } else {
+            reject(e);
+          }
+        }
+      }
+
+      // Call the func above.
+      func(expr);
+    });
+  }
 }
 
 // -------------------------------------------------------
@@ -879,7 +912,6 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
     }
   },
 
-
   // dynamic-let - new dynamic environment with bindings
   "dynamic-let": ({ node, dynamicEnv, flag }) => {
     assertDynamicLet(node);
@@ -955,12 +987,28 @@ const SpecialFormHandlers: Record<string, FormHandler> = {
   // Note: maybe we can implement a call/cc here.
 
   // dynamic - Look up and get value of dynamic variable.
+  // Note: we don't have "setf" yet.
   dynamic: ({ node, dynamicEnv }) => {
     const [, name] = node;
     assertSymbol(name);
     const [v, found] = findEnv(dynamicEnv, null, name);
     return { ret: found ? v : error(`dynamic variable ${name} not found`) };
-  }
+  },
+
+  // await - throws ContinuablePromise.
+  await: ({ node, flag, cont, interpreter }) => {
+    if (!flag) {
+      const cn = [...node];
+      return { ret: cn, reevals: [{ flag: "!" }], subevals: [{ parent: cn, index: 1 }] };
+    } else {
+      const [, ...args] = node;
+      throw new ContinuablePromise(
+        interpreter,
+        (args.length === 0) ? null : (args.length === 1) ? args[0] : Promise.all(args),
+        cont
+      );
+    }
+  },
 
 };
 
@@ -990,6 +1038,91 @@ export class EnvWrapper {
   dynamicSetLocal = (name: string, value: Expr) => setEnv(this.dynamicEnv, name, value);
   callerGet = (name: string) => findEnv(this.callerEnv, this.base, name)[0];
   callerHas = (name: string) => findEnv(this.callerEnv, this.base, name)[1];
+}
+
+// This class wraps a promise and a continuation given to "await" function
+// to enable to resume evaluation when the promise have been resolved.
+// If a value is given instead of a promise, it is treated as a resolved value.
+// This class also provides some utility functions to inspect the status
+// syncronously just like BlueBird does.
+// Note: We can't extend Promise class using Typescript. A workaround that is suggested
+// on the link blow is having a internal promise and proxy it. We also do that.
+// https://github.com/microsoft/TypeScript/issues/15202
+export class ContinuablePromise implements PromiseLike<void> {
+  private interpreter: Interpreter;
+  private coninuation: Continuation;
+  private resolvedValue?: Expr;
+  private rejectedReason: any;
+  private status: "fulfilled" | "rejected" | "pending" = "pending";
+  private resolve!: (value?: void | PromiseLike<void>) => void;
+  private reject!: (reason?: any) => void;
+  private promise: Promise<void>; // Internal promise.
+
+  constructor(interpreter: Interpreter, promise: any, continuation: Continuation) {
+    this.promise = new Promise<void>((resolve, reject) => {
+      this.resolve = resolve
+      this.reject = reject
+    });
+    this.interpreter = interpreter;
+    this.coninuation = continuation;
+    if (isPromiseLike<Expr, any>(promise)) {
+      promise.then(
+        (value) => {
+          this.resolvedValue = value;
+          this.status = "fulfilled";
+          this.resolve();
+        },
+        (reason) => {
+          this.rejectedReason = reason;
+          this.status = "rejected";
+          this.reject(reason);
+        },
+      );
+    } else {
+      this.resolvedValue = promise;
+      this.status = "fulfilled";
+      this.resolve();
+    }
+  }
+
+  // Utility functions to inspect status.
+  isFulfilled() {
+    return this.status === "fulfilled";
+  }
+  isRejected() {
+    return this.status === "rejected";
+  }
+  isPending() {
+    return this.status === "pending";
+  }
+  reason() {
+    if (!this.isRejected()) {
+      throw new Error("The promise is not rejected yet.");
+    }
+    return this.rejectedReason;
+  }
+
+  // Resumes evaluation.
+  // Note that this method can be called after the promise was fulfilled(resolved).
+  // Otherwise this method throws an error.
+  resume() {
+    if (!this.isFulfilled()) {
+      throw new Error("The promise is not fulfilled yet.");
+    }
+    return this.interpreter.resume(this.coninuation, this.resolvedValue);
+  }
+
+
+  public then<TResult1 = void, TResult2 = never>(
+    onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | undefined | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null
+  ): PromiseLike<TResult1 | TResult2> {
+    return this.promise.then(onfulfilled, onrejected)
+  }
+
+  catch(onRejected?: (reason: any) => PromiseLike<never>): Promise<void> {
+    return this.promise.catch(onRejected)
+  }
 }
 
 // -------------------------------------------------------
