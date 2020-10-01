@@ -1,5 +1,6 @@
 /* eslint-disable no-loop-func */
 /* eslint-disable no-throw-literal */
+import Core from "./core.json";
 
 // -------------------------------------------------------
 //                       Consant
@@ -318,11 +319,10 @@ export class Interpreter {
     if (this.loadCore) {
       const debugMode = this.debugMode;
       this.debugMode = this.debugCore;
-      this.evalInBase(require("./core.json"));
+      this.evalInBase(Core);
       this.debugMode = debugMode;
     }
   }
-
 
   // Show debug message on console.
   private debug = (message: string, ...args: any[]) => {

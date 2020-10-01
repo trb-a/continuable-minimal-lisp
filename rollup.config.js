@@ -56,7 +56,7 @@ export default [
       ...Object.keys(pkg.devDependencies || {}),
     ],
     plugins: [
-      commonjs({extensions: ['.ts', '.js', '.json']}),
+      commonjs({extensions: ['.ts', '.js']}),
       typescript(),
       resolve(),
       json(),
