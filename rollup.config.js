@@ -50,6 +50,7 @@ export default [
         exports: "named",
       },
     ],
+    context: "this", // So that rollup doesn't complain about `this' on global space.
     external: [
       // ...Object.keys(pkg.dependencies || {}), Note: we are bundling tslib.
       ...Object.keys(pkg.devDependencies || {}),
