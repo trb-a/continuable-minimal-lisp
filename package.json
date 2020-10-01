@@ -16,7 +16,9 @@
     "types": "tsc --declaration --emitDeclarationOnly --outDir ./dist/types && copyfiles -u 3 dist/types/src/*.d.ts dist && rimraf dist/types",
     "test": "jest"
   },
-  "dependencies": {},
+  "dependencies": {
+    "tslib": "^2.0.1"
+  },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^15.1.0",
     "@rollup/plugin-json": "^4.1.0",
@@ -38,7 +40,6 @@
     "rollup-plugin-terser": "^7.0.2",
     "touch": "^3.1.0",
     "ts-jest": "^26.1.0",
-    "tslib": "^2.0.1",
     "typescript": "^4.0.3"
   },
   "keywords": [

@@ -16,6 +16,7 @@ const banner = `/*!
   ${name}.js v${pkg.version}
   ${pkg.homepage}
   Released under the ${pkg.license} License.
+  Note: Language specification's license is unconfirmed.
 */`;
 
 export default [
@@ -29,7 +30,7 @@ export default [
         exports: "named",
       },
       {
-        file: pkg.main.replace('.mjs', '.min.mjs'),
+        file: pkg.main.replace('.js', '.min.js'),
         format: 'cjs',
         banner,
         plugins: [terser()],
@@ -50,7 +51,7 @@ export default [
       },
     ],
     external: [
-      ...Object.keys(pkg.dependencies || {}),
+      // ...Object.keys(pkg.dependencies || {}), Note: we are bundling tslib.
       ...Object.keys(pkg.devDependencies || {}),
     ],
     plugins: [

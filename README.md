@@ -86,7 +86,7 @@ Limitations
    Bug reports are welcome, but we never support IE.
  - Not tested on node.js environment at this moment (Maybe it's rare request).
  - It's still miniMAL, but not minimal anymore as of file size.  
-   (Minified library size is about 17k including core.json. Original file size is less than 1k without core.json)
+   (Minified module size is about 46k including core.json and tslib. Original miniMAL's file size is less than 1k without core.json)
  - We don't have "slurp" "load" function and ARGS symbol. ( They are only for node.js )
  - Resume doesn't work if the major version or minor version changes from the suspended versions.  
    Because continuation reflects the language internal strongly.
