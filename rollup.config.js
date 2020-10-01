@@ -58,7 +58,7 @@ export default [
     plugins: [
       typescript(),
       resolve(),
-      commonjs({extensions: ['.ts', '.js']}),
+      commonjs({extensions: ['.ts', '.js', '.json']}),
       json(),
     ],
   },
