@@ -4,7 +4,6 @@
     "strict": true,
     "module": "commonjs",
     "esModuleInterop": true,
-    "sourceMap": true,
     "allowJs": true,
     "lib": [
       "es6",
@@ -12,8 +11,6 @@
     ],
     "rootDir": ".",
     "moduleResolution": "node",
-    "declaration": true,
-    "outDir": "./dist/types",
     "baseUrl": "./",
     "paths": {
         "*": [

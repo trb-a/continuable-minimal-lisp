@@ -28,3 +28,6 @@
   * Added "await" function and "evalAsync" method on Interpreter class.
   * Added isPromiseLike, ContinuablePromise class to support above.
   * Make Continuation's "info" property not be optional. Set null instead.
+
+## 2020-10-01 v0.4.4
+  * Changed module bundler from parcel to rollup.
