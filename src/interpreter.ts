@@ -6,7 +6,7 @@ import Core from "./core.json";
 //                       Consant
 // -------------------------------------------------------
 export const LANGUAGE = "Continuable-miniMAL-Lisp";
-export const VERSION = "0.4.4";
+export const VERSION = "0.4.5";
 
 // -------------------------------------------------------
 //                   Type definitions
@@ -309,7 +309,7 @@ export class Interpreter {
   public debugMode: boolean = false; // Show debug messsage if true.except loading core.
   public debugCore: boolean = false; // Show debug messsage if true on loading core.
   public debugMax: number = Infinity; // Throws error if debugCount exceeds this.
-  public debugFilter: (message: string) => boolean = () => true;
+  public debugFilter: (message: string, ...args: any[]) => boolean = () => true;
 
   // Constructor can take options.
   // Load core.json to the Base object unless disabled.
@@ -326,7 +326,7 @@ export class Interpreter {
 
   // Show debug message on console.
   private debug = (message: string, ...args: any[]) => {
-    if (!this.debugMode || !this.debugFilter(message)) {
+    if (!this.debugMode || !this.debugFilter(message, ...args)) {
       return;
     }
     args = args.map(a => a instanceof Array ? cloneAST(a) : a);
@@ -452,8 +452,8 @@ export class Interpreter {
   }
 
   // Evaluate AST ( as public method )
-  public eval = (ast: Expr) => {
-    return this.evalAST(ast);
+  public eval = (ast: Expr, env?: Env, dynamicEnv?: Env) => {
+    return this.evalAST(ast, env, dynamicEnv);
   }
 
   // Evaluate JSON & result as JSON using JSON.parse & JSON.stringify.

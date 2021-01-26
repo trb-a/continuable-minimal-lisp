@@ -1,5 +1,5 @@
 /*!
-  ContinuableMinimalLisp.js v0.4.4
+  ContinuableMinimalLisp.js v0.4.5
   https://github.com/trb-a/continuable-minimal-lisp
   Released under the MIT License.
   Note: Language specification's license is unconfirmed.
@@ -1025,7 +1025,7 @@ var Core = [
 //                       Consant
 // -------------------------------------------------------
 var LANGUAGE = "Continuable-miniMAL-Lisp";
-var VERSION = "0.4.4";
+var VERSION = "0.4.5";
 // -------------------------------------------------------
 //                   Utilities
 // -------------------------------------------------------
@@ -1231,7 +1231,7 @@ var Interpreter = /** @class */ (function () {
             for (var _i = 1; _i < arguments.length; _i++) {
                 args[_i - 1] = arguments[_i];
             }
-            if (!_this.debugMode || !_this.debugFilter(message)) {
+            if (!_this.debugMode || !_this.debugFilter.apply(_this, __spreadArrays([message], args))) {
                 return;
             }
             args = args.map(function (a) { return a instanceof Array ? cloneAST(a) : a; });
@@ -1356,8 +1356,8 @@ var Interpreter = /** @class */ (function () {
             return root[0];
         };
         // Evaluate AST ( as public method )
-        this.eval = function (ast) {
-            return _this.evalAST(ast);
+        this.eval = function (ast, env, dynamicEnv) {
+            return _this.evalAST(ast, env, dynamicEnv);
         };
         // Evaluate JSON & result as JSON using JSON.parse & JSON.stringify.
         // JSON.parse/stringify may throw exception.

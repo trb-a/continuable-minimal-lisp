@@ -31,3 +31,6 @@
 
 ## 2020-10-01 v0.4.4
   * Changed module bundler from parcel to rollup.
+
+## 2020-10-01 v0.4.5
+  * Added env and dynamicEnv parameter to Interpreter.eval method.

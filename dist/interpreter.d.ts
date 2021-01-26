@@ -1,5 +1,5 @@
 export declare const LANGUAGE = "Continuable-miniMAL-Lisp";
-export declare const VERSION = "0.4.4";
+export declare const VERSION = "0.4.5";
 export declare type Expr = Expr[] | bigint | boolean | JSFunction | number | object | string | symbol | undefined | null;
 export declare type Env = [Record<string, Expr>, Env | null];
 declare type Base = {
@@ -63,11 +63,11 @@ export declare class Interpreter {
     debugMode: boolean;
     debugCore: boolean;
     debugMax: number;
-    debugFilter: (message: string) => boolean;
+    debugFilter: (message: string, ...args: any[]) => boolean;
     constructor(options?: Options);
     private debug;
     private evalAST;
-    eval: (ast: Expr) => string | number | bigint | boolean | symbol | object | Expr[] | JSFunction | Promise<Expr> | null | undefined;
+    eval: (ast: Expr, env?: Env | undefined, dynamicEnv?: Env | undefined) => string | number | bigint | boolean | symbol | object | Expr[] | JSFunction | Promise<Expr> | null | undefined;
     rep: (input: string) => string | undefined;
     resume: (cont: Continuation, value: Expr) => string | number | bigint | boolean | symbol | object | Expr[] | JSFunction | Promise<Expr> | null | undefined;
     evalInBase: (ast: Expr) => void;
